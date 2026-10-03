@@ -1,0 +1,55 @@
+review_id,category,product_name,aspect,sentiment,confidence,platform,country,review_date
+1,Phone,iPhone 13,Condition,Neutral,0.5002,Example Marketplace,India,2026-09-20
+1,Phone,iPhone 13,Battery,Negative,0.6335,Example Marketplace,India,2026-09-20
+2,Laptop,Dell Latitude 5520,Condition,Positive,0.9784,Example Marketplace,India,2026-09-21
+2,Laptop,Dell Latitude 5520,Performance,Positive,0.9671,Example Marketplace,India,2026-09-21
+3,Phone,Samsung Galaxy S21,Condition,Neutral,0.4874,RefurbStore,USA,2026-09-22
+3,Phone,Samsung Galaxy S21,Display,Neutral,0.4874,RefurbStore,USA,2026-09-22
+4,Phone,iPhone 12,Battery,Positive,0.9589,Example Marketplace,India,2026-09-22
+5,Laptop,Lenovo ThinkPad T480,Packaging,Negative,0.9259,RefurbStore,UK,2026-09-23
+5,Laptop,Lenovo ThinkPad T480,Delivery,Negative,0.9259,RefurbStore,UK,2026-09-23
+6,Laptop,HP EliteBook 840,Performance,Positive,0.8154,Example Marketplace,India,2026-09-23
+6,Laptop,HP EliteBook 840,Price/Value,Positive,0.8154,Example Marketplace,India,2026-09-23
+7,Phone,Samsung Galaxy S20,Camera,Positive,0.9425,RefurbStore,USA,2026-09-24
+8,Phone,iPhone 11,Accessories,Neutral,0.711,Example Marketplace,India,2026-09-24
+8,Phone,iPhone 11,Packaging,Neutral,0.5985,Example Marketplace,India,2026-09-24
+9,Laptop,Dell XPS 13,Performance,Positive,0.9544,Example Marketplace,India,2026-09-25
+9,Laptop,Dell XPS 13,Delivery,Positive,0.9544,Example Marketplace,India,2026-09-25
+10,Phone,Google Pixel 6,Seller Service,Positive,0.8807,RefurbStore,USA,2026-09-25
+11,Laptop,MacBook Air 2020,Display,Negative,0.9212,Example Marketplace,India,2026-09-26
+12,Phone,iPhone 13 Pro,Price/Value,Positive,0.9462,Example Marketplace,India,2026-09-26
+12,Phone,iPhone 13 Pro,Condition,Positive,0.7696,Example Marketplace,India,2026-09-26
+13,Phone,iPhone 12 Mini,Battery,Neutral,0.5038,RefurbStore,UK,2026-09-27
+14,Laptop,Lenovo ThinkPad X1 Carbon,Seller Service,Positive,0.6762,Example Marketplace,India,2026-09-27
+15,Laptop,HP Pavilion 15,Return/Refund,Negative,0.8886,RefurbStore,USA,2026-09-28
+16,Phone,Samsung Galaxy Note 20,Condition,Neutral,0.5372,Example Marketplace,India,2026-09-28
+17,Laptop,Dell Inspiron 14,Performance,Neutral,0.7679,Example Marketplace,India,2026-09-29
+18,Phone,iPhone 14,Packaging,Positive,0.5084,RefurbStore,USA,2026-09-29
+18,Phone,iPhone 14,Accessories,Neutral,0.8612,RefurbStore,USA,2026-09-29
+19,Phone,Google Pixel 5,Display,Negative,0.8004,Example Marketplace,India,2026-09-30
+20,Laptop,Lenovo IdeaPad 5,Performance,Positive,0.7195,Example Marketplace,India,2026-09-30
+21,Phone,Samsung Galaxy A52,Battery,Neutral,0.7215,RefurbStore,UK,2026-10-01
+22,Laptop,MacBook Pro 2019,Condition,Negative,0.5262,Example Marketplace,India,2026-10-01
+23,Phone,iPhone SE 2022,Camera,Negative,0.6808,Example Marketplace,India,2026-10-02
+24,Laptop,Dell Latitude 7420,Seller Service,Positive,0.6491,RefurbStore,USA,2026-10-02
+25,Laptop,HP ProBook 450,Condition,Neutral,0.5821,Example Marketplace,India,2026-10-03
+25,Laptop,HP ProBook 450,Price/Value,Neutral,0.5821,Example Marketplace,India,2026-10-03
+26,Phone,OnePlus 9,Display,Negative,0.6722,Example Marketplace,India,2026-10-03
+26,Phone,OnePlus 9,Delivery,Negative,0.6722,Example Marketplace,India,2026-10-03
+27,Laptop,Lenovo Yoga 7i,Delivery,Negative,0.7633,RefurbStore,UK,2026-10-04
+28,Laptop,Acer Aspire 5,Performance,Negative,0.6329,Example Marketplace,India,2026-10-04
+29,Phone,iPhone 13 Pro Max,Condition,Positive,0.8233,Example Marketplace,India,2026-10-05
+30,Phone,Samsung Galaxy S22,Accessories,Negative,0.5656,RefurbStore,USA,2026-10-05
+30,Phone,Samsung Galaxy S22,Price/Value,Neutral,0.6559,RefurbStore,USA,2026-10-05
+31,Laptop,Dell Vostro 3400,Battery,Negative,0.7606,Example Marketplace,India,2026-10-06
+31,Laptop,Dell Vostro 3400,Performance,Negative,0.7606,Example Marketplace,India,2026-10-06
+32,Phone,Google Pixel 7,Display,Positive,0.9303,Example Marketplace,India,2026-10-06
+33,Laptop,MacBook Air M1,Packaging,Neutral,0.6474,RefurbStore,UK,2026-10-07
+34,Phone,iPhone XR,Return/Refund,Positive,0.7895,Example Marketplace,India,2026-10-07
+35,Laptop,HP Spectre x360,Camera,Negative,0.6541,Example Marketplace,India,2026-10-08
+36,Phone,Samsung Galaxy S21 FE,Overall,Neutral,0.5574,RefurbStore,USA,2026-10-08
+37,Laptop,Lenovo ThinkPad T490,Performance,Positive,0.9667,Example Marketplace,India,2026-10-09
+37,Laptop,Lenovo ThinkPad T490,Price/Value,Positive,0.9667,Example Marketplace,India,2026-10-09
+38,Laptop,Dell XPS 15,Battery,Negative,0.5441,Example Marketplace,India,2026-10-09
+39,Phone,iPhone 12 Pro,Seller Service,Negative,0.832,RefurbStore,UK,2026-10-10
+40,Phone,Google Pixel 6a,Condition,Positive,0.9225,Example Marketplace,India,2026-10-10

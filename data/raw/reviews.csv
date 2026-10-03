@@ -1,0 +1,41 @@
+review_id,review_text,category,product_name,rating,platform,country,review_date
+1,"The phone looks almost new but the battery drains quickly","Phone","iPhone 13",3,"Example Marketplace","India",2026-09-20
+2,"Laptop looks excellent and performance is great","Laptop","Dell Latitude 5520",5,"Example Marketplace","India",2026-09-21
+3,"Screen has visible scratches but overall the phone works fine","Phone","Samsung Galaxy S21",3,"RefurbStore","USA",2026-09-22
+4,"Battery life is amazing, lasts the entire day easily","Phone","iPhone 12",5,"Example Marketplace","India",2026-09-22
+5,"The laptop arrived in terrible packaging, box was crushed","Laptop","Lenovo ThinkPad T480",2,"RefurbStore","UK",2026-09-23
+6,"Performance is decent for the price, no complaints","Laptop","HP EliteBook 840",4,"Example Marketplace","India",2026-09-23
+7,"Camera quality is surprisingly good for a refurbished phone","Phone","Samsung Galaxy S20",4,"RefurbStore","USA",2026-09-24
+8,"The charger and accessories were missing from the package","Phone","iPhone 11",2,"Example Marketplace","India",2026-09-24
+9,"Delivery was fast and the laptop was well packed","Laptop","Dell XPS 13",5,"Example Marketplace","India",2026-09-25
+10,"Seller service was very helpful when I had questions","Phone","Google Pixel 6",5,"RefurbStore","USA",2026-09-25
+11,"The display has a dead pixel which is very annoying","Laptop","MacBook Air 2020",2,"Example Marketplace","India",2026-09-26
+12,"Great value for money, works like brand new","Phone","iPhone 13 Pro",5,"Example Marketplace","India",2026-09-26
+13,"Battery health is only 78%, should have been mentioned in listing","Phone","iPhone 12 Mini",2,"RefurbStore","UK",2026-09-27
+14,"The keyboard feels great and the trackpad is responsive","Laptop","Lenovo ThinkPad X1 Carbon",5,"Example Marketplace","India",2026-09-27
+15,"Return process was a nightmare, took 3 weeks to get refund","Laptop","HP Pavilion 15",1,"RefurbStore","USA",2026-09-28
+16,"Phone condition is acceptable but has minor dents on the frame","Phone","Samsung Galaxy Note 20",3,"Example Marketplace","India",2026-09-28
+17,"The laptop overheats during heavy usage, performance drops","Laptop","Dell Inspiron 14",2,"Example Marketplace","India",2026-09-29
+18,"Packaging was professional and included all original accessories","Phone","iPhone 14",5,"RefurbStore","USA",2026-09-29
+19,"Display brightness is not as good as expected","Phone","Google Pixel 5",3,"Example Marketplace","India",2026-09-30
+20,"The SSD is fast and the laptop boots in seconds","Laptop","Lenovo IdeaPad 5",5,"Example Marketplace","India",2026-09-30
+21,"Battery swelled up after two weeks of use, very disappointed","Phone","Samsung Galaxy A52",1,"RefurbStore","UK",2026-10-01
+22,"Condition was exactly as described, no surprises","Laptop","MacBook Pro 2019",4,"Example Marketplace","India",2026-10-01
+23,"The camera produces blurry photos in low light","Phone","iPhone SE 2022",2,"Example Marketplace","India",2026-10-02
+24,"Seller responded quickly and resolved the issue promptly","Laptop","Dell Latitude 7420",5,"RefurbStore","USA",2026-10-02
+25,"Price is reasonable considering the condition of the laptop","Laptop","HP ProBook 450",4,"Example Marketplace","India",2026-10-03
+26,"The phone arrived with a cracked screen protector but screen is fine","Phone","OnePlus 9",3,"Example Marketplace","India",2026-10-03
+27,"Delivery took longer than promised but the product is good","Laptop","Lenovo Yoga 7i",3,"RefurbStore","UK",2026-10-04
+28,"Performance is sluggish, apps take forever to load","Laptop","Acer Aspire 5",1,"Example Marketplace","India",2026-10-04
+29,"The phone feels premium and looks brand new","Phone","iPhone 13 Pro Max",5,"Example Marketplace","India",2026-10-05
+30,"Accessories included were not original, cheap third-party charger","Phone","Samsung Galaxy S22",2,"RefurbStore","USA",2026-10-05
+31,"Battery performance is average, nothing special","Laptop","Dell Vostro 3400",3,"Example Marketplace","India",2026-10-06
+32,"The display colors are vibrant and sharp","Phone","Google Pixel 7",5,"Example Marketplace","India",2026-10-06
+33,"Packaging was minimal but sufficient to protect the laptop","Laptop","MacBook Air M1",4,"RefurbStore","UK",2026-10-07
+34,"The refund was processed quickly without any hassle","Phone","iPhone XR",4,"Example Marketplace","India",2026-10-07
+35,"Camera is the weak point, photos lack detail","Laptop","HP Spectre x360",3,"Example Marketplace","India",2026-10-08
+36,"The phone has some software glitches but hardware is fine","Phone","Samsung Galaxy S21 FE",3,"RefurbStore","USA",2026-10-08
+37,"Great performance for a refurbished laptop at this price","Laptop","Lenovo ThinkPad T490",5,"Example Marketplace","India",2026-10-09
+38,"The battery drains even when the laptop is idle","Laptop","Dell XPS 15",2,"Example Marketplace","India",2026-10-09
+39,"Seller service was unresponsive after the sale","Phone","iPhone 12 Pro",1,"RefurbStore","UK",2026-10-10
+40,"The phone looks good but the speaker sounds muffled","Phone","Google Pixel 6a",3,"Example Marketplace","India",2026-10-10
