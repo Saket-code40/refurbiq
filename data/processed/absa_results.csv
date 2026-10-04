@@ -1,55 +1,106 @@
-review_id,category,product_name,aspect,sentiment,confidence,platform,country,review_date
-1,Phone,iPhone 13,Condition,Neutral,0.5002,Example Marketplace,India,2026-09-20
-1,Phone,iPhone 13,Battery,Negative,0.6335,Example Marketplace,India,2026-09-20
-2,Laptop,Dell Latitude 5520,Condition,Positive,0.9784,Example Marketplace,India,2026-09-21
-2,Laptop,Dell Latitude 5520,Performance,Positive,0.9671,Example Marketplace,India,2026-09-21
-3,Phone,Samsung Galaxy S21,Condition,Neutral,0.4874,RefurbStore,USA,2026-09-22
-3,Phone,Samsung Galaxy S21,Display,Neutral,0.4874,RefurbStore,USA,2026-09-22
-4,Phone,iPhone 12,Battery,Positive,0.9589,Example Marketplace,India,2026-09-22
-5,Laptop,Lenovo ThinkPad T480,Packaging,Negative,0.9259,RefurbStore,UK,2026-09-23
-5,Laptop,Lenovo ThinkPad T480,Delivery,Negative,0.9259,RefurbStore,UK,2026-09-23
-6,Laptop,HP EliteBook 840,Performance,Positive,0.8154,Example Marketplace,India,2026-09-23
-6,Laptop,HP EliteBook 840,Price/Value,Positive,0.8154,Example Marketplace,India,2026-09-23
-7,Phone,Samsung Galaxy S20,Camera,Positive,0.9425,RefurbStore,USA,2026-09-24
-8,Phone,iPhone 11,Accessories,Neutral,0.711,Example Marketplace,India,2026-09-24
-8,Phone,iPhone 11,Packaging,Neutral,0.5985,Example Marketplace,India,2026-09-24
-9,Laptop,Dell XPS 13,Performance,Positive,0.9544,Example Marketplace,India,2026-09-25
-9,Laptop,Dell XPS 13,Delivery,Positive,0.9544,Example Marketplace,India,2026-09-25
-10,Phone,Google Pixel 6,Seller Service,Positive,0.8807,RefurbStore,USA,2026-09-25
-11,Laptop,MacBook Air 2020,Display,Negative,0.9212,Example Marketplace,India,2026-09-26
-12,Phone,iPhone 13 Pro,Price/Value,Positive,0.9462,Example Marketplace,India,2026-09-26
-12,Phone,iPhone 13 Pro,Condition,Positive,0.7696,Example Marketplace,India,2026-09-26
-13,Phone,iPhone 12 Mini,Battery,Neutral,0.5038,RefurbStore,UK,2026-09-27
-14,Laptop,Lenovo ThinkPad X1 Carbon,Seller Service,Positive,0.6762,Example Marketplace,India,2026-09-27
-15,Laptop,HP Pavilion 15,Return/Refund,Negative,0.8886,RefurbStore,USA,2026-09-28
-16,Phone,Samsung Galaxy Note 20,Condition,Neutral,0.5372,Example Marketplace,India,2026-09-28
-17,Laptop,Dell Inspiron 14,Performance,Neutral,0.7679,Example Marketplace,India,2026-09-29
-18,Phone,iPhone 14,Packaging,Positive,0.5084,RefurbStore,USA,2026-09-29
-18,Phone,iPhone 14,Accessories,Neutral,0.8612,RefurbStore,USA,2026-09-29
-19,Phone,Google Pixel 5,Display,Negative,0.8004,Example Marketplace,India,2026-09-30
-20,Laptop,Lenovo IdeaPad 5,Performance,Positive,0.7195,Example Marketplace,India,2026-09-30
-21,Phone,Samsung Galaxy A52,Battery,Neutral,0.7215,RefurbStore,UK,2026-10-01
-22,Laptop,MacBook Pro 2019,Condition,Negative,0.5262,Example Marketplace,India,2026-10-01
-23,Phone,iPhone SE 2022,Camera,Negative,0.6808,Example Marketplace,India,2026-10-02
-24,Laptop,Dell Latitude 7420,Seller Service,Positive,0.6491,RefurbStore,USA,2026-10-02
-25,Laptop,HP ProBook 450,Condition,Neutral,0.5821,Example Marketplace,India,2026-10-03
-25,Laptop,HP ProBook 450,Price/Value,Neutral,0.5821,Example Marketplace,India,2026-10-03
-26,Phone,OnePlus 9,Display,Negative,0.6722,Example Marketplace,India,2026-10-03
-26,Phone,OnePlus 9,Delivery,Negative,0.6722,Example Marketplace,India,2026-10-03
-27,Laptop,Lenovo Yoga 7i,Delivery,Negative,0.7633,RefurbStore,UK,2026-10-04
-28,Laptop,Acer Aspire 5,Performance,Negative,0.6329,Example Marketplace,India,2026-10-04
-29,Phone,iPhone 13 Pro Max,Condition,Positive,0.8233,Example Marketplace,India,2026-10-05
-30,Phone,Samsung Galaxy S22,Accessories,Negative,0.5656,RefurbStore,USA,2026-10-05
-30,Phone,Samsung Galaxy S22,Price/Value,Neutral,0.6559,RefurbStore,USA,2026-10-05
-31,Laptop,Dell Vostro 3400,Battery,Negative,0.7606,Example Marketplace,India,2026-10-06
-31,Laptop,Dell Vostro 3400,Performance,Negative,0.7606,Example Marketplace,India,2026-10-06
-32,Phone,Google Pixel 7,Display,Positive,0.9303,Example Marketplace,India,2026-10-06
-33,Laptop,MacBook Air M1,Packaging,Neutral,0.6474,RefurbStore,UK,2026-10-07
-34,Phone,iPhone XR,Return/Refund,Positive,0.7895,Example Marketplace,India,2026-10-07
-35,Laptop,HP Spectre x360,Camera,Negative,0.6541,Example Marketplace,India,2026-10-08
-36,Phone,Samsung Galaxy S21 FE,Overall,Neutral,0.5574,RefurbStore,USA,2026-10-08
-37,Laptop,Lenovo ThinkPad T490,Performance,Positive,0.9667,Example Marketplace,India,2026-10-09
-37,Laptop,Lenovo ThinkPad T490,Price/Value,Positive,0.9667,Example Marketplace,India,2026-10-09
-38,Laptop,Dell XPS 15,Battery,Negative,0.5441,Example Marketplace,India,2026-10-09
-39,Phone,iPhone 12 Pro,Seller Service,Negative,0.832,RefurbStore,UK,2026-10-10
-40,Phone,Google Pixel 6a,Condition,Positive,0.9225,Example Marketplace,India,2026-10-10
+review_id,review_text,aspect,sentiment,confidence,category,product_name,rating,platform,country,review_date
+1,The phone looks almost new and the battery lasts a full day. Very happy with this purchase.,Condition,Positive,0.8233,Phone,iPhone 13,5,Example Marketplace,India,2026-09-01
+1,The phone looks almost new and the battery lasts a full day. Very happy with this purchase.,Battery,Positive,0.8233,Phone,iPhone 13,5,Example Marketplace,India,2026-09-01
+2,Delivery was fast and the packaging was excellent but the phone has a small scratch near the camera.,Condition,Neutral,0.5507,Phone,Samsung Galaxy S21,4,Example Marketplace,India,2026-09-02
+2,Delivery was fast and the packaging was excellent but the phone has a small scratch near the camera.,Performance,Neutral,0.5507,Phone,Samsung Galaxy S21,4,Example Marketplace,India,2026-09-02
+2,Delivery was fast and the packaging was excellent but the phone has a small scratch near the camera.,Camera,Neutral,0.5507,Phone,Samsung Galaxy S21,4,Example Marketplace,India,2026-09-02
+2,Delivery was fast and the packaging was excellent but the phone has a small scratch near the camera.,Packaging,Neutral,0.5507,Phone,Samsung Galaxy S21,4,Example Marketplace,India,2026-09-02
+2,Delivery was fast and the packaging was excellent but the phone has a small scratch near the camera.,Delivery,Neutral,0.5507,Phone,Samsung Galaxy S21,4,Example Marketplace,India,2026-09-02
+3,Battery drains quickly and the screen has a dead pixel. Disappointed with this refurbished laptop.,Condition,Negative,0.4969,Laptop,Dell XPS 13,2,Example Marketplace,USA,2026-09-03
+3,Battery drains quickly and the screen has a dead pixel. Disappointed with this refurbished laptop.,Battery,Negative,0.4969,Laptop,Dell XPS 13,2,Example Marketplace,USA,2026-09-03
+3,Battery drains quickly and the screen has a dead pixel. Disappointed with this refurbished laptop.,Display,Negative,0.4969,Laptop,Dell XPS 13,2,Example Marketplace,USA,2026-09-03
+4,Great value for money. Performance is smooth and the display is bright. Would recommend.,Performance,Positive,0.6739,Laptop,MacBook Air M1,5,Example Marketplace,India,2026-09-04
+4,Great value for money. Performance is smooth and the display is bright. Would recommend.,Display,Positive,0.6739,Laptop,MacBook Air M1,5,Example Marketplace,India,2026-09-04
+4,Great value for money. Performance is smooth and the display is bright. Would recommend.,Price/Value,Positive,0.6739,Laptop,MacBook Air M1,5,Example Marketplace,India,2026-09-04
+5,The seller was very helpful when I asked for a replacement. Customer service is responsive.,Seller Service,Positive,0.3978,Phone,OnePlus 9,4,Example Marketplace,India,2026-09-05
+5,The seller was very helpful when I asked for a replacement. Customer service is responsive.,Return/Refund,Positive,0.3978,Phone,OnePlus 9,4,Example Marketplace,India,2026-09-05
+6,Laptop arrived late and the charger was missing from the box. The condition of the body is average.,Condition,Negative,0.4642,Laptop,Lenovo ThinkPad X1,2,Example Marketplace,UK,2026-09-06
+6,Laptop arrived late and the charger was missing from the box. The condition of the body is average.,Battery,Negative,0.4642,Laptop,Lenovo ThinkPad X1,2,Example Marketplace,UK,2026-09-06
+6,Laptop arrived late and the charger was missing from the box. The condition of the body is average.,Accessories,Negative,0.4642,Laptop,Lenovo ThinkPad X1,2,Example Marketplace,UK,2026-09-06
+6,Laptop arrived late and the charger was missing from the box. The condition of the body is average.,Packaging,Negative,0.4642,Laptop,Lenovo ThinkPad X1,2,Example Marketplace,UK,2026-09-06
+6,Laptop arrived late and the charger was missing from the box. The condition of the body is average.,Delivery,Negative,0.4642,Laptop,Lenovo ThinkPad X1,2,Example Marketplace,UK,2026-09-06
+7,Camera quality is amazing and photos look crisp. Phone condition is like new.,Condition,Positive,0.7793,Phone,iPhone 12,5,Example Marketplace,USA,2026-09-07
+7,Camera quality is amazing and photos look crisp. Phone condition is like new.,Camera,Positive,0.7793,Phone,iPhone 12,5,Example Marketplace,USA,2026-09-07
+8,The battery backup is poor and it overheats while charging. Returning it.,Battery,Negative,0.5181,Phone,Samsung Galaxy S20,1,Example Marketplace,India,2026-09-08
+8,The battery backup is poor and it overheats while charging. Returning it.,Performance,Negative,0.5181,Phone,Samsung Galaxy S20,1,Example Marketplace,India,2026-09-08
+8,The battery backup is poor and it overheats while charging. Returning it.,Return/Refund,Negative,0.5181,Phone,Samsung Galaxy S20,1,Example Marketplace,India,2026-09-08
+9,Packaging was sturdy and unboxing felt premium. The laptop looks brand new.,Packaging,Positive,0.5974,Laptop,HP Envy 13,5,Example Marketplace,India,2026-09-09
+10,Performance is laggy and the laptop hangs with a few tabs open. Not worth the price.,Performance,Negative,0.631,Laptop,Acer Aspire 5,2,Example Marketplace,India,2026-09-10
+10,Performance is laggy and the laptop hangs with a few tabs open. Not worth the price.,Price/Value,Negative,0.631,Laptop,Acer Aspire 5,2,Example Marketplace,India,2026-09-10
+11,The display is beautiful but the delivery took too long. Courier updates were poor.,Display,Neutral,0.44,Phone,Google Pixel 6,3,Example Marketplace,UK,2026-09-11
+11,The display is beautiful but the delivery took too long. Courier updates were poor.,Delivery,Neutral,0.44,Phone,Google Pixel 6,3,Example Marketplace,UK,2026-09-11
+12,Refund process was smooth after I returned the defective unit. Seller support was helpful.,Performance,Negative,0.2643,Phone,iPhone 11,3,Example Marketplace,USA,2026-09-12
+12,Refund process was smooth after I returned the defective unit. Seller support was helpful.,Seller Service,Negative,0.2643,Phone,iPhone 11,3,Example Marketplace,USA,2026-09-12
+12,Refund process was smooth after I returned the defective unit. Seller support was helpful.,Return/Refund,Negative,0.2643,Phone,iPhone 11,3,Example Marketplace,USA,2026-09-12
+13,Excellent laptop for the price. Fast performance and a gorgeous screen. Accessories included as promised.,Performance,Positive,0.8676,Laptop,Dell Inspiron 14,5,Example Marketplace,India,2026-09-13
+13,Excellent laptop for the price. Fast performance and a gorgeous screen. Accessories included as promised.,Display,Positive,0.8676,Laptop,Dell Inspiron 14,5,Example Marketplace,India,2026-09-13
+13,Excellent laptop for the price. Fast performance and a gorgeous screen. Accessories included as promised.,Accessories,Positive,0.8676,Laptop,Dell Inspiron 14,5,Example Marketplace,India,2026-09-13
+13,Excellent laptop for the price. Fast performance and a gorgeous screen. Accessories included as promised.,Price/Value,Positive,0.8676,Laptop,Dell Inspiron 14,5,Example Marketplace,India,2026-09-13
+14,The phone has visible scratches on the body and the box was damaged in transit.,Condition,Negative,0.4782,Phone,OnePlus 8,2,Example Marketplace,India,2026-09-14
+14,The phone has visible scratches on the body and the box was damaged in transit.,Packaging,Negative,0.4782,Phone,OnePlus 8,2,Example Marketplace,India,2026-09-14
+14,The phone has visible scratches on the body and the box was damaged in transit.,Delivery,Negative,0.4782,Phone,OnePlus 8,2,Example Marketplace,India,2026-09-14
+15,Battery health is great and charging is fast. Very satisfied with the condition.,Condition,Positive,0.7051,Phone,Samsung Galaxy S22,5,Example Marketplace,India,2026-09-15
+15,Battery health is great and charging is fast. Very satisfied with the condition.,Battery,Positive,0.7051,Phone,Samsung Galaxy S22,5,Example Marketplace,India,2026-09-15
+15,Battery health is great and charging is fast. Very satisfied with the condition.,Performance,Positive,0.7051,Phone,Samsung Galaxy S22,5,Example Marketplace,India,2026-09-15
+16,The laptop screen has bright pixels and the keyboard feels worn. Mediocre deal overall.,Condition,Negative,0.5662,Laptop,MacBook Pro 2019,3,Example Marketplace,UK,2026-09-16
+16,The laptop screen has bright pixels and the keyboard feels worn. Mediocre deal overall.,Display,Negative,0.5662,Laptop,MacBook Pro 2019,3,Example Marketplace,UK,2026-09-16
+16,The laptop screen has bright pixels and the keyboard feels worn. Mediocre deal overall.,Price/Value,Negative,0.5662,Laptop,MacBook Pro 2019,3,Example Marketplace,UK,2026-09-16
+17,Customer service refused to answer my questions about the warranty. Terrible seller experience.,Seller Service,Negative,0.8883,Phone,Google Pixel 5,1,Example Marketplace,USA,2026-09-17
+18,Arrived on time and well packed. The camera works perfectly and selfies look great.,Camera,Positive,0.8653,Phone,iPhone SE,4,Example Marketplace,India,2026-09-18
+18,Arrived on time and well packed. The camera works perfectly and selfies look great.,Packaging,Positive,0.8653,Phone,iPhone SE,4,Example Marketplace,India,2026-09-18
+18,Arrived on time and well packed. The camera works perfectly and selfies look great.,Delivery,Positive,0.8653,Phone,iPhone SE,4,Example Marketplace,India,2026-09-18
+19,Value for money is decent but the battery drains when idle. Performance is acceptable.,Battery,Neutral,0.6584,Laptop,Lenovo IdeaPad 3,3,Example Marketplace,India,2026-09-19
+19,Value for money is decent but the battery drains when idle. Performance is acceptable.,Performance,Neutral,0.6584,Laptop,Lenovo IdeaPad 3,3,Example Marketplace,India,2026-09-19
+19,Value for money is decent but the battery drains when idle. Performance is acceptable.,Price/Value,Neutral,0.6584,Laptop,Lenovo IdeaPad 3,3,Example Marketplace,India,2026-09-19
+20,The earphones and cable included were genuine accessories. Phone condition is excellent.,Condition,Positive,0.7606,Phone,OnePlus Nord,4,Example Marketplace,India,2026-09-20
+20,The earphones and cable included were genuine accessories. Phone condition is excellent.,Accessories,Positive,0.7606,Phone,OnePlus Nord,4,Example Marketplace,India,2026-09-20
+21,Shipping was quick and the laptop was wrapped nicely. It performs smoothly for daily tasks.,Performance,Positive,0.5777,Laptop,HP Pavilion 15,5,Example Marketplace,USA,2026-09-21
+21,Shipping was quick and the laptop was wrapped nicely. It performs smoothly for daily tasks.,Delivery,Positive,0.5777,Laptop,HP Pavilion 15,5,Example Marketplace,USA,2026-09-21
+22,The touchscreen has a dead spot and the display brightness is uneven. Returning this unit.,Display,Negative,0.5859,Phone,Samsung Galaxy A52,1,Example Marketplace,India,2026-09-22
+22,The touchscreen has a dead spot and the display brightness is uneven. Returning this unit.,Return/Refund,Negative,0.5859,Phone,Samsung Galaxy A52,1,Example Marketplace,India,2026-09-22
+23,Good deal for the price. The phone looks refurbished but functions like new.,Condition,Positive,0.626,Phone,iPhone XR,4,Example Marketplace,India,2026-09-23
+23,Good deal for the price. The phone looks refurbished but functions like new.,Price/Value,Positive,0.626,Phone,iPhone XR,4,Example Marketplace,India,2026-09-23
+24,The laptop overheats during video calls and the fan is loud. Battery life is short.,Battery,Negative,0.5668,Laptop,Dell Latitude 7400,2,Example Marketplace,UK,2026-09-24
+24,The laptop overheats during video calls and the fan is loud. Battery life is short.,Performance,Negative,0.5668,Laptop,Dell Latitude 7400,2,Example Marketplace,UK,2026-09-24
+25,Replacement arrived promptly after the first phone was defective. Seller communication was excellent.,Delivery,Positive,0.593,Phone,Google Pixel 4a,4,Example Marketplace,India,2026-09-25
+25,Replacement arrived promptly after the first phone was defective. Seller communication was excellent.,Seller Service,Positive,0.593,Phone,Google Pixel 4a,4,Example Marketplace,India,2026-09-25
+25,Replacement arrived promptly after the first phone was defective. Seller communication was excellent.,Return/Refund,Positive,0.593,Phone,Google Pixel 4a,4,Example Marketplace,India,2026-09-25
+26,Photos from the camera look washed out and the lens has a tiny scratch. Average phone.,Condition,Negative,0.4591,Phone,Samsung Galaxy Note 10,3,Example Marketplace,India,2026-09-26
+26,Photos from the camera look washed out and the lens has a tiny scratch. Average phone.,Camera,Negative,0.4591,Phone,Samsung Galaxy Note 10,3,Example Marketplace,India,2026-09-26
+27,The packaging looked opened and the charger cable is frayed. Battery charges slowly.,Battery,Negative,0.4643,Laptop,Acer Swift 3,2,Example Marketplace,USA,2026-09-27
+27,The packaging looked opened and the charger cable is frayed. Battery charges slowly.,Performance,Negative,0.4643,Laptop,Acer Swift 3,2,Example Marketplace,USA,2026-09-27
+27,The packaging looked opened and the charger cable is frayed. Battery charges slowly.,Accessories,Negative,0.4643,Laptop,Acer Swift 3,2,Example Marketplace,USA,2026-09-27
+27,The packaging looked opened and the charger cable is frayed. Battery charges slowly.,Packaging,Negative,0.4643,Laptop,Acer Swift 3,2,Example Marketplace,USA,2026-09-27
+28,Superb laptop condition with almost no marks. The display is sharp and brightness is great.,Condition,Positive,0.8399,Laptop,MacBook Air 2020,5,Example Marketplace,India,2026-09-28
+28,Superb laptop condition with almost no marks. The display is sharp and brightness is great.,Display,Positive,0.8399,Laptop,MacBook Air 2020,5,Example Marketplace,India,2026-09-28
+29,Delivery was delayed by three days but the phone itself is in perfect condition.,Condition,Positive,0.455,Phone,iPhone 13,4,Example Marketplace,India,2026-09-29
+29,Delivery was delayed by three days but the phone itself is in perfect condition.,Delivery,Positive,0.455,Phone,iPhone 13,4,Example Marketplace,India,2026-09-29
+30,The return process was confusing and the refund took two weeks. Phone battery was weak too.,Battery,Negative,0.5554,Phone,OnePlus 9R,1,Example Marketplace,UK,2026-09-30
+30,The return process was confusing and the refund took two weeks. Phone battery was weak too.,Return/Refund,Negative,0.5554,Phone,OnePlus 9R,1,Example Marketplace,UK,2026-09-30
+31,Performance is fast and multitasking is smooth. The laptop looks almost new.,Condition,Positive,0.5219,Laptop,Lenovo ThinkPad T480,5,Example Marketplace,India,2026-10-01
+31,Performance is fast and multitasking is smooth. The laptop looks almost new.,Performance,Positive,0.5219,Laptop,Lenovo ThinkPad T480,5,Example Marketplace,India,2026-10-01
+32,The phone body has dents and the screen has minor scratches. Price was cheap though.,Condition,Negative,0.4842,Phone,Samsung Galaxy M32,2,Example Marketplace,India,2026-10-02
+32,The phone body has dents and the screen has minor scratches. Price was cheap though.,Display,Negative,0.4842,Phone,Samsung Galaxy M32,2,Example Marketplace,India,2026-10-02
+32,The phone body has dents and the screen has minor scratches. Price was cheap though.,Price/Value,Negative,0.4842,Phone,Samsung Galaxy M32,2,Example Marketplace,India,2026-10-02
+33,Amazing value. Battery lasts long and the camera takes excellent pictures.,Battery,Positive,0.9173,Phone,Google Pixel 7,5,Example Marketplace,USA,2026-10-03
+33,Amazing value. Battery lasts long and the camera takes excellent pictures.,Camera,Positive,0.9173,Phone,Google Pixel 7,5,Example Marketplace,USA,2026-10-03
+33,Amazing value. Battery lasts long and the camera takes excellent pictures.,Price/Value,Positive,0.9173,Phone,Google Pixel 7,5,Example Marketplace,USA,2026-10-03
+34,Seller support was slow to respond and the laptop arrived with a cracked screen corner.,Performance,Negative,0.4692,Laptop,HP EliteBook 840,1,Example Marketplace,India,2026-10-04
+34,Seller support was slow to respond and the laptop arrived with a cracked screen corner.,Display,Negative,0.4692,Laptop,HP EliteBook 840,1,Example Marketplace,India,2026-10-04
+34,Seller support was slow to respond and the laptop arrived with a cracked screen corner.,Delivery,Negative,0.4692,Laptop,HP EliteBook 840,1,Example Marketplace,India,2026-10-04
+34,Seller support was slow to respond and the laptop arrived with a cracked screen corner.,Seller Service,Negative,0.4692,Laptop,HP EliteBook 840,1,Example Marketplace,India,2026-10-04
+35,The laptop was packed beautifully and includes the original adapter. Boots fast.,Performance,Positive,0.76,Laptop,Dell XPS 15,5,Example Marketplace,India,2026-10-05
+35,The laptop was packed beautifully and includes the original adapter. Boots fast.,Accessories,Positive,0.76,Laptop,Dell XPS 15,5,Example Marketplace,India,2026-10-05
+35,The laptop was packed beautifully and includes the original adapter. Boots fast.,Packaging,Positive,0.76,Laptop,Dell XPS 15,5,Example Marketplace,India,2026-10-05
+36,Phone works fine but the accessories in the box are cheap third-party ones.,Accessories,Neutral,0.6222,Phone,iPhone 12 Mini,3,Example Marketplace,India,2026-10-06
+36,Phone works fine but the accessories in the box are cheap third-party ones.,Packaging,Neutral,0.6222,Phone,iPhone 12 Mini,3,Example Marketplace,India,2026-10-06
+36,Phone works fine but the accessories in the box are cheap third-party ones.,Price/Value,Neutral,0.6222,Phone,iPhone 12 Mini,3,Example Marketplace,India,2026-10-06
+37,The display colours are vibrant and the touch response is smooth. Great refurbished buy.,Condition,Positive,0.8406,Phone,Samsung Galaxy S21 FE,5,Example Marketplace,India,2026-10-07
+37,The display colours are vibrant and the touch response is smooth. Great refurbished buy.,Performance,Positive,0.8406,Phone,Samsung Galaxy S21 FE,5,Example Marketplace,India,2026-10-07
+37,The display colours are vibrant and the touch response is smooth. Great refurbished buy.,Display,Positive,0.8406,Phone,Samsung Galaxy S21 FE,5,Example Marketplace,India,2026-10-07
+38,Battery drains very quickly and the phone heats up while charging. Waste of money.,Battery,Negative,0.7596,Phone,OnePlus 7T,1,Example Marketplace,India,2026-10-08
+39,Courier handling was rough and the box arrived crushed but the laptop is undamaged inside.,Packaging,Negative,0.4294,Laptop,MacBook Pro 13,3,Example Marketplace,UK,2026-10-09
+39,Courier handling was rough and the box arrived crushed but the laptop is undamaged inside.,Delivery,Negative,0.4294,Laptop,MacBook Pro 13,3,Example Marketplace,UK,2026-10-09
+40,Excellent condition and the battery health report shows 92 percent. Highly recommended seller.,Condition,Positive,0.9422,Phone,iPhone 14,5,Example Marketplace,India,2026-10-10
+40,Excellent condition and the battery health report shows 92 percent. Highly recommended seller.,Battery,Positive,0.9422,Phone,iPhone 14,5,Example Marketplace,India,2026-10-10
+40,Excellent condition and the battery health report shows 92 percent. Highly recommended seller.,Seller Service,Positive,0.9422,Phone,iPhone 14,5,Example Marketplace,India,2026-10-10

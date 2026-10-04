@@ -1,9 +1,9 @@
-"""Analytics layer for RefurbIQ.
+"""Aggregation and insight generation over ABSA results.
 
-Takes ABSA result rows (one row per review-aspect pair) and computes
-aggregate statistics and automated insights. All insights are derived
-from the actual data — nothing is hardcoded.
+Insights are computed strictly from the data — no hard-coded claims.
 """
+
+from __future__ import annotations
 
 import pandas as pd
 
@@ -11,171 +11,109 @@ SENTIMENT_ORDER = ["Positive", "Neutral", "Negative"]
 
 
 def calculate_statistics(results_df: pd.DataFrame) -> dict:
-    """Compute high-level statistics from ABSA results.
-
-    Args:
-        results_df: DataFrame with columns including
-                    review_id, aspect, sentiment.
-
-    Returns:
-        dict with keys: total_reviews, sentiment_counts,
-        sentiment_percentages, aspect_frequency, most_discussed_aspect,
-        most_negative_aspect, aspect_sentiment_breakdown.
-    """
-    if results_df.empty:
-        return {
-            "total_reviews": 0,
-            "sentiment_counts": {},
-            "sentiment_percentages": {},
-            "aspect_frequency": {},
-            "most_discussed_aspect": None,
-            "most_negative_aspect": None,
-            "aspect_sentiment_breakdown": {},
-        }
-
-    # Unique reviews analyzed
-    total_reviews = results_df["review_id"].nunique()
-
-    # Overall sentiment distribution (across all aspect mentions)
-    sentiment_counts = results_df["sentiment"].value_counts().to_dict()
-    total_mentions = len(results_df)
-    sentiment_percentages = {
-        label: round(count / total_mentions * 100, 1)
-        for label, count in sentiment_counts.items()
+    """Aggregate counts, percentages, and aspect-level summaries."""
+    stats: dict = {
+        "total_reviews": 0,
+        "sentiment_counts": {s: 0 for s in SENTIMENT_ORDER},
+        "sentiment_percentages": {s: 0.0 for s in SENTIMENT_ORDER},
+        "aspect_frequency": {},
+        "most_discussed_aspect": None,
+        "most_negative_aspect": None,
+        "negative_rate_by_aspect": {},
     }
 
-    # Aspect frequency
-    aspect_frequency = results_df["aspect"].value_counts().to_dict()
-    most_discussed_aspect = (
-        results_df["aspect"].value_counts().index[0]
-        if not results_df["aspect"].empty
-        else None
-    )
+    if results_df is None or results_df.empty:
+        return stats
 
-    # Aspect-level sentiment breakdown (percentages per aspect)
-    breakdown = {}
-    for aspect in results_df["aspect"].unique():
-        subset = results_df[results_df["aspect"] == aspect]
-        counts = subset["sentiment"].value_counts()
-        n = len(subset)
-        breakdown[aspect] = {
-            label: round(counts.get(label, 0) / n * 100, 1)
-            for label in SENTIMENT_ORDER
-        }
-
-    # Most negative aspect = highest proportion of Negative sentiment
-    # (only among aspects mentioned at least twice to avoid noise)
-    most_negative_aspect = None
-    highest_neg_pct = -1.0
-    for aspect, stats in breakdown.items():
-        freq = aspect_frequency.get(aspect, 0)
-        if freq >= 2 and stats.get("Negative", 0) > highest_neg_pct:
-            highest_neg_pct = stats["Negative"]
-            most_negative_aspect = aspect
-
-    return {
-        "total_reviews": int(total_reviews),
-        "sentiment_counts": sentiment_counts,
-        "sentiment_percentages": sentiment_percentages,
-        "aspect_frequency": aspect_frequency,
-        "most_discussed_aspect": most_discussed_aspect,
-        "most_negative_aspect": most_negative_aspect,
-        "aspect_sentiment_breakdown": breakdown,
+    total = len(results_df)
+    counts = results_df["sentiment"].value_counts()
+    stats["total_reviews"] = int(total)
+    stats["sentiment_counts"] = {
+        s: int(counts.get(s, 0)) for s in SENTIMENT_ORDER
+    }
+    stats["sentiment_percentages"] = {
+        s: round(100 * counts.get(s, 0) / total, 1) for s in SENTIMENT_ORDER
     }
 
-
-def generate_insights(results_df: pd.DataFrame, stats: dict) -> list[str]:
-    """Generate automated insights from computed statistics.
-
-    Every insight is derived from actual data values — no invented
-    statistics.
-
-    Returns a list of human-readable insight strings.
-    """
-    insights: list[str] = []
-
-    if results_df.empty or stats["total_reviews"] == 0:
-        return ["No reviews analyzed yet."]
-
-    breakdown = stats["aspect_sentiment_breakdown"]
-    aspect_frequency = stats["aspect_frequency"]
-
-    # 1. Most discussed aspect
-    most_discussed = stats["most_discussed_aspect"]
-    if most_discussed:
-        count = aspect_frequency[most_discussed]
-        insights.append(
-            f"{most_discussed} is the most frequently discussed aspect "
-            f"({count} mention{'s' if count != 1 else ''})."
-        )
-
-    # 2. Aspect with highest negative proportion
-    most_negative = stats["most_negative_aspect"]
-    if most_negative and most_negative in breakdown:
-        neg_pct = breakdown[most_negative]["Negative"]
-        insights.append(
-            f"{most_negative} has a relatively high proportion of negative "
-            f"sentiment ({neg_pct}%)."
-        )
-
-    # 3. Aspects that are predominantly positive
-    for aspect, sb in breakdown.items():
-        freq = aspect_frequency.get(aspect, 0)
-        if freq >= 2 and sb.get("Positive", 0) >= 70:
-            insights.append(
-                f"{aspect} is predominantly positive "
-                f"({sb['Positive']}% positive mentions)."
-            )
-
-    # 4. Aspects with comparatively negative sentiment
-    # (negative % above the overall average)
-    total_mentions = len(results_df)
-    overall_neg_pct = (
-        results_df["sentiment"].value_counts().get("Negative", 0)
-        / total_mentions * 100
-        if total_mentions else 0
-    )
-    for aspect, sb in breakdown.items():
-        if aspect == most_negative:
-            continue  # already reported above
-        freq = aspect_frequency.get(aspect, 0)
-        if freq >= 2 and sb.get("Negative", 0) > overall_neg_pct + 10:
-            insights.append(
-                f"{aspect} sentiment is comparatively negative "
-                f"({sb['Negative']}% vs {round(overall_neg_pct, 1)}% overall)."
-            )
-
-    # 5. Overall sentiment summary
-    pos_pct = stats["sentiment_percentages"].get("Positive", 0)
-    neg_pct = stats["sentiment_percentages"].get("Negative", 0)
-    insights.append(
-        f"Overall, {pos_pct}% of aspect mentions are positive and "
-        f"{neg_pct}% are negative."
+    aspect_frequency = results_df["aspect"].value_counts()
+    stats["aspect_frequency"] = aspect_frequency.to_dict()
+    stats["most_discussed_aspect"] = (
+        aspect_frequency.index[0] if len(aspect_frequency) else None
     )
 
-    return insights
+    # Negative share per aspect — drives the "most negative aspect" insight.
+    negative_rate = (
+        results_df.assign(negative=results_df["sentiment"].eq("Negative"))
+        .groupby("aspect")["negative"]
+        .mean()
+    )
+    stats["negative_rate_by_aspect"] = negative_rate.round(3).to_dict()
+    if len(negative_rate):
+        stats["most_negative_aspect"] = negative_rate.idxmax()
+
+    return stats
 
 
-def sentiment_by_column(results_df: pd.DataFrame, column: str) -> pd.DataFrame | None:
-    """Return a pivot of sentiment distribution grouped by a column.
-
-    Returns None if the column doesn't exist or has no valid data.
-    """
+def sentiment_by_column(results_df: pd.DataFrame, column: str):
+    """Pivot of sentiment counts grouped by a column, or None if unusable."""
     if column not in results_df.columns:
         return None
-
     subset = results_df.dropna(subset=[column])
     if subset.empty:
         return None
-
     pivot = (
         subset.groupby([column, "sentiment"])
         .size()
         .unstack(fill_value=0)
+        .reindex(columns=SENTIMENT_ORDER, fill_value=0)
     )
-    # Ensure all sentiment columns present
-    for label in SENTIMENT_ORDER:
-        if label not in pivot.columns:
-            pivot[label] = 0
-    pivot = pivot[SENTIMENT_ORDER]
     return pivot
+
+
+def generate_insights(results_df: pd.DataFrame, stats: dict) -> list[str]:
+    """Plain-language insights derived only from the computed statistics."""
+    insights: list[str] = []
+
+    if stats["total_reviews"] == 0:
+        return ["No reviews analyzed yet."]
+
+    pct = stats["sentiment_percentages"]
+    insights.append(
+        f"Overall, {pct.get('Positive', 0.0)}% of aspect mentions are positive, "
+        f"{pct.get('Neutral', 0.0)}% neutral, and {pct.get('Negative', 0.0)}% negative."
+    )
+
+    if stats["most_discussed_aspect"]:
+        freq = stats["aspect_frequency"]
+        top_aspect = stats["most_discussed_aspect"]
+        insights.append(
+            f"'{top_aspect}' is the most discussed aspect with "
+            f"{freq.get(top_aspect, 0)} mentions."
+        )
+
+    if stats["most_negative_aspect"]:
+        rates = stats["negative_rate_by_aspect"]
+        worst = stats["most_negative_aspect"]
+        insights.append(
+            f"'{worst}' generates the most negative sentiment — "
+            f"{rates.get(worst, 0) * 100:.0f}% of its mentions are negative."
+        )
+
+    # Category with the highest negative share, when categories exist.
+    if "category" in results_df.columns and results_df["category"].notna().any():
+        cat_pivot = sentiment_by_column(results_df, "category")
+        if cat_pivot is not None and "Negative" in cat_pivot.columns:
+            totals = cat_pivot.sum(axis=1)
+            negative_share = (cat_pivot["Negative"] / totals.replace(0, pd.NA)).dropna()
+            if len(negative_share):
+                worst_cat = negative_share.idxmax()
+                insights.append(
+                    f"'{worst_cat}' reviews carry the highest negative share "
+                    f"({negative_share[worst_cat] * 100:.0f}%)."
+                )
+
+    insights.append(
+        "Tip: prioritize seller follow-up on the most negative aspect to "
+        "improve refurbishment quality perception."
+    )
+    return insights

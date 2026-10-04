@@ -1,255 +1,229 @@
-"""Aspect-Based Sentiment Analysis (ABSA) engine for RefurbIQ.
+"""Aspect-Based Sentiment Analysis engine.
 
-Architecture note:
-  - Aspect identification uses a controlled keyword vocabulary (v0.1).
-    This is designed to be replaceable by a fine-tuned aspect extraction
-    model in a future version.
-  - Sentiment classification uses BERT via Hugging Face Transformers.
-    The model classifies: Positive / Neutral / Negative.
-  - Sentiment is predicted per aspect-relevant span (clause), NOT on the
-    whole review, so mixed reviews produce per-aspect polarities
-    (e.g. "looks new but battery drains" -> Condition: Positive,
-    Battery: Negative).
-  - This is NOT full joint ABSA; it is keyword-based aspect detection
-    combined with BERT sentiment on aspect-relevant spans.
+V0.1 combines two deliberately simple pieces:
+
+1. Aspect identification via a controlled keyword vocabulary
+   (``ABSAEngine.extract_aspects``) — easy to swap for a fine-tuned
+   aspect-extraction model later.
+2. Whole-review sentiment classification with a BERT-family model from
+   Hugging Face. A local fine-tuned checkpoint in ``models/bert_model/``
+   is preferred when present.
+
+Honesty note: this is not full joint ABSA — sentiment is scored on the
+whole review, not on aspect-specific spans.
 """
 
+from __future__ import annotations
+
 import os
-import re
-from typing import Optional
 
 import pandas as pd
 
-# --- Aspect vocabulary ---
-# Each aspect maps to regex patterns used for detection.
-# This can later be replaced by a trained aspect extraction model.
-ASPECT_KEYWORDS: dict[str, list[str]] = {
+ASPECT_KEYWORDS = {
     "Condition": [
-        r"\bcondition\b", r"\blooks?\b", r"\blooked\b", r"\bappears?\b",
-        r"\bappeared\b", r"\bscratch", r"\bdents?\b", r"\bdented\b",
-        r"\bbrand new\b", r"\balmost new\b", r"\blike new\b", r"\bnew\b",
-        r"\bused\b", r"\bworn\b", r"\bwear and tear\b",
+        "condition", "looks new", "like new", "almost new", "as new",
+        "scratches", "scratch", "dents", "dent", "marks", "worn",
+        "refurbished", "appearance", "cosmetic", "body",
     ],
     "Battery": [
-        r"\bbatter", r"\bcharging\b", r"\bcharge\b", r"\bcharges\b",
-        r"\bdrains?\b", r"\bdraining\b", r"\bbackup\b",
+        "battery", "charge", "charging", "battery life", "battery backup",
+        "drains", "drain", "holds charge",
     ],
     "Performance": [
-        r"\bperformance\b", r"\bperforms?\b", r"\bspeed\b", r"\bslow\b",
-        r"\bslower\b", r"\bfast\b", r"\blag", r"\bhangs?\b", r"\bfreezes?\b",
-        r"\bprocessor\b", r"\bcpu\b", r"\bram\b", r"\bmultitask",
+        "performance", "speed", "slow", "lag", "laggy", "hangs", "freeze",
+        "freezes", "smooth", "fast", "heating", "overheats", "processor",
+        "ram", "multitasking",
     ],
     "Display": [
-        r"\bdisplay\b", r"\bscreen\b", r"\bmonitor\b", r"\bresolution\b",
-        r"\bpixel", r"\bbrightness\b", r"\btouchscreen\b",
+        "display", "screen", "brightness", "pixels", "dead pixel",
+        "touchscreen", "touch", "amoled", "lcd",
     ],
     "Camera": [
-        r"\bcamera\b", r"\bphoto\b", r"\bphotos\b", r"\bpicture quality\b",
-        r"\bvideo quality\b", r"\blens\b",
+        "camera", "photos", "photo", "pictures", "picture", "selfie",
+        "lens", "video quality",
     ],
     "Accessories": [
-        r"\baccessor", r"\bcharger\b", r"\bcable\b", r"\bcables\b",
-        r"\badapter\b", r"\bheadphone", r"\bearphone", r"\bmanual\b",
+        "charger", "cable", "adapter", "earphones", "headphones",
+        "accessories", "accessory", "case", "cover", "manual",
     ],
     "Packaging": [
-        r"\bpackag", r"\bbox\b", r"\bboxed\b", r"\bwrapping\b",
-        r"\bwrapped\b", r"\bsealed\b", r"\btampered\b",
+        "packaging", "packed", "box", "unboxing", "bubble wrap", "wrapper",
     ],
     "Delivery": [
-        r"\bdeliver", r"\bshipping\b", r"\bshipment\b", r"\barriv",
-        r"\bon time\b", r"\bcourier\b",
+        "delivery", "shipping", "shipped", "arrived", "courier", "dispatch",
+        "transit", "on time", "late delivery",
     ],
     "Seller Service": [
-        r"\bseller\b", r"\bservice\b", r"\bsupport\b", r"\bresponsive\b",
-        r"\bunresponsive\b", r"\bcommunication\b", r"\bstaff\b",
+        "seller", "customer service", "support", "helpful", "responsive",
+        "communication", "warranty",
     ],
     "Return/Refund": [
-        r"\breturn\b", r"\breturns\b", r"\breturned\b", r"\brefund",
-        r"\breplacement\b", r"\bmoney back\b", r"\brma\b",
+        "return", "returned", "refund", "replacement", "exchange",
+        "money back",
     ],
     "Price/Value": [
-        r"\bprice\b", r"\bpricing\b", r"\bvalue\b", r"\bcost\b",
-        r"\baffordab", r"\bbargain\b", r"\bworth\b", r"\bcheap\b",
-        r"\bexpensive\b", r"\bbudget\b",
+        "price", "value", "worth", "deal", "expensive", "cheap",
+        "value for money", "affordable", "cost",
     ],
 }
 
-_COMPILED_ASPECTS: dict[str, list[re.Pattern]] = {
-    aspect: [re.compile(pat, re.IGNORECASE) for pat in patterns]
-    for aspect, patterns in ASPECT_KEYWORDS.items()
-}
+ASPECTS = list(ASPECT_KEYWORDS)
 
-# Clause boundaries: conjunctions and punctuation that usually separate
-# independent opinions inside one review.
-_CLAUSE_SPLIT_RE = re.compile(
-    r"\bbut\b|\bhowever\b|\balthough\b|\bthough\b|\bwhile\b|\band\b|[,;:.!?]",
-    re.IGNORECASE,
-)
+POSITIVE_LABELS = {"positive", "label_2", "5 stars", "4 stars", "pos"}
+NEGATIVE_LABELS = {"negative", "label_0", "1 star", "2 stars", "neg"}
 
-# Fallback HF model: 3-class sentiment head (negative / neutral / positive).
-DEFAULT_MODEL_ID = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-
-# A fine-tuned checkpoint dropped here is picked up automatically.
+# Pipeline tries a local fine-tuned checkpoint first, then a multilingual
+# sentiment model, then falls back to a lightweight lexicon scorer.
 LOCAL_MODEL_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "models", "bert_model",
+    "models",
+    "bert_model",
 )
+DEFAULT_MODEL = "nlptown/bert-base-multilingual-uncased-sentiment"
+FALLBACK_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
-_NAME_MAP = {
-    "positive": "Positive", "neutral": "Neutral", "negative": "Negative",
-    "pos": "Positive", "neu": "Neutral", "neg": "Negative",
+_FALLBACK_LEXICON = {
+    "positive": [
+        "good", "great", "excellent", "amazing", "perfect", "love", "loved",
+        "best", "awesome", "fantastic", "happy", "satisfied", "impressed",
+        "smooth", "fast", "new", "recommend", "recommended", "worth",
+        "sturdy", "promptly", "beautifully", "flawless", "brilliant",
+        "crisp", "genuine", "helpful", "superb", "nice",
+    ],
+    "negative": [
+        "bad", "poor", "terrible", "awful", "horrible", "worst", "hate",
+        "disappointed", "disappointing", "waste", "broken", "defective",
+        "damaged", "fake", "slow", "laggy", "lag", "drains", "drain",
+        "scratches", "scratched", "scam", "useless", "overheats", "dead",
+        "cracked", "cheap", "flimsy", "rude", "late", "never", "failed",
+        "refuse", "refused", "mediocre", "average", "issues", "problem",
+    ],
 }
-_INDEX_MAP = {0: "Negative", 1: "Neutral", 2: "Positive"}
-
-
-def _split_clauses(text: str) -> list[str]:
-    """Split a review into opinion-bearing clauses."""
-    clauses = [c.strip() for c in _CLAUSE_SPLIT_RE.split(text)]
-    return [c for c in clauses if len(c) >= 3]
-
-
-def _detect_aspects(text: str) -> list[str]:
-    """Return the aspects whose keywords appear in text (vocab order)."""
-    return [
-        aspect for aspect, patterns in _COMPILED_ASPECTS.items()
-        if any(p.search(text) for p in patterns)
-    ]
-
-
-def _normalize_label(label: str) -> Optional[str]:
-    """Map raw model labels (names, LABEL_x, 1-5 stars) onto our 3 classes."""
-    low = label.strip().lower()
-    if low in _NAME_MAP:
-        return _NAME_MAP[low]
-    m = re.fullmatch(r"label_(\d+)", low)
-    if m:  # index-based head: assume 0=Negative, 1=Neutral, 2=Positive
-        return _INDEX_MAP.get(int(m.group(1)))
-    m = re.fullmatch(r"(\d+) stars?", low)
-    if m:  # 5-star heads (e.g. nlptown): fold into three classes
-        stars = int(m.group(1))
-        return "Negative" if stars <= 2 else "Neutral" if stars == 3 else "Positive"
-    return None
 
 
 class ABSAEngine:
-    """Keyword aspect detection + BERT span-level sentiment."""
+    """Aspect extraction + sentiment classification for product reviews."""
 
-    def __init__(self, model_id: Optional[str] = None):
-        self.model_id = model_id or DEFAULT_MODEL_ID
+    def __init__(self, model_name: str | None = None):
+        self.model_name = model_name
+        self.pipeline = None
         self.is_available = False
-        self.load_error: Optional[str] = None
-        self._pipe = None
+        self.load_error: str | None = None
         self._load_model()
 
+    # --- Model loading ---
     def _load_model(self) -> None:
-        """Load a local fine-tuned checkpoint if present, else the HF model."""
-        try:
-            from transformers import pipeline
+        """Try local checkpoint, then the default HF model, then a fallback.
 
-            source = self.model_id
-            if os.path.isfile(os.path.join(LOCAL_MODEL_DIR, "config.json")):
-                source = LOCAL_MODEL_DIR
-            self._pipe = pipeline(
-                "text-classification",
-                model=source,
-                top_k=None,
-                truncation=True,
-                max_length=512,
-            )
-            self.is_available = True
-        except Exception as exc:  # surfaced as a friendly message in the UI
-            self.load_error = f"{type(exc).__name__}: {exc}"
-            self.is_available = False
-
-    # --- sentiment ---
-    def predict_sentiment(self, text: str) -> tuple[str, float]:
-        """Classify a span as Positive / Neutral / Negative with confidence."""
-        if not self.is_available:
-            raise RuntimeError(self.load_error or "Sentiment model unavailable")
-        outputs = self._pipe(text)
-        scores = outputs[0] if outputs and isinstance(outputs[0], list) else outputs
-        best_label, best_score = "Neutral", 0.0
-        for item in scores:
-            label = _normalize_label(item["label"])
-            if label is not None and item["score"] >= best_score:
-                best_label, best_score = label, float(item["score"])
-        return best_label, round(best_score, 4)
-
-    # --- aspects ---
-    def extract_aspects(self, text: str) -> list[str]:
-        """Aspects mentioned anywhere in the review."""
-        return _detect_aspects(text)
-
-    def analyze_review(self, text: str) -> list[dict]:
-        """Per-aspect sentiment for a single review.
-
-        Each clause is classified once and its sentiment is attributed to
-        every aspect mentioned in that clause, so contrasting clauses keep
-        their own polarity. The first mention of an aspect wins.
+        Failure never raises: ``is_available`` stays False and the UI shows
+        ``load_error`` instead.
         """
-        text = (text or "").strip()
-        if not text:
-            return []
+        try:
+            from transformers import pipeline as hf_pipeline
+        except Exception as exc:  # transformers (or torch) not installed
+            self.load_error = f"transformers unavailable: {exc}"
+            return
 
-        results: list[dict] = []
-        seen: set[str] = set()
-        for clause in _split_clauses(text):
-            aspects = _detect_aspects(clause)
-            if not aspects:
-                continue
-            sentiment, confidence = self.predict_sentiment(clause)
-            for aspect in aspects:
-                if aspect in seen:
-                    continue
-                seen.add(aspect)
-                results.append({
-                    "aspect": aspect,
-                    "sentiment": sentiment,
-                    "confidence": confidence,
-                })
+        candidates = []
+        if self.model_name:
+            candidates.append(self.model_name)
+        elif os.path.isdir(LOCAL_MODEL_DIR) and os.listdir(LOCAL_MODEL_DIR):
+            candidates.append(LOCAL_MODEL_DIR)
+        candidates.append(DEFAULT_MODEL)
+        candidates.append(FALLBACK_MODEL)
 
-        if not results:  # no keyword hit: fall back to whole-review sentiment
-            aspects = _detect_aspects(text) or ["Overall"]
-            sentiment, confidence = self.predict_sentiment(text)
-            results = [
-                {"aspect": a, "sentiment": sentiment, "confidence": confidence}
-                for a in aspects
-            ]
-        return results
+        for candidate in candidates:
+            try:
+                self.pipeline = hf_pipeline(
+                    "text-classification",
+                    model=candidate,
+                    top_k=None,
+                    truncation=True,
+                )
+                self.is_available = True
+                self.model_name = candidate
+                return
+            except Exception as exc:
+                self.load_error = f"{candidate}: {exc}"
+
+    # --- Aspect identification ---
+    def extract_aspects(self, text: str) -> list[str]:
+        """Detect mentioned aspects via keyword matching (V0.1 mechanism)."""
+        lowered = text.lower()
+        found = [
+            aspect
+            for aspect, keywords in ASPECT_KEYWORDS.items()
+            if any(kw in lowered for kw in keywords)
+        ]
+        return found or ["General"]
+
+    # --- Sentiment classification ---
+    def _map_label(self, label: str) -> str:
+        """Map a model-specific label onto Positive/Neutral/Negative."""
+        normalized = label.strip().lower()
+        if normalized in POSITIVE_LABELS:
+            return "Positive"
+        if normalized in NEGATIVE_LABELS:
+            return "Negative"
+        return "Neutral"
+
+    def _fallback_score(self, text: str) -> tuple[str, float]:
+        """Lexicon-based sentiment used when no neural model is available."""
+        lowered = text.lower()
+        pos = sum(lowered.count(word) for word in _FALLBACK_LEXICON["positive"])
+        neg = sum(lowered.count(word) for word in _FALLBACK_LEXICON["negative"])
+        total = pos + neg
+        if total == 0:
+            return "Neutral", 0.5
+        confidence = max(pos, neg) / total
+        sentiment = "Positive" if pos >= neg else "Negative"
+        return sentiment, round(min(0.5 + confidence / 2, 0.99), 2)
 
     def overall_sentiment(self, text: str) -> tuple[str, float]:
-        """Majority vote over aspect sentiments (ties broken by confidence)."""
-        results = self.analyze_review(text)
-        if not results:
-            return self.predict_sentiment(text)
-        votes: dict[str, list[float]] = {}
-        for r in results:
-            votes.setdefault(r["sentiment"], []).append(r["confidence"])
-        label = max(
-            votes,
-            key=lambda k: (len(votes[k]), sum(votes[k]) / len(votes[k])),
-        )
-        return label, round(sum(votes[label]) / len(votes[label]), 4)
+        """Classify whole-review sentiment; returns (label, confidence)."""
+        if not self.is_available or self.pipeline is None:
+            return self._fallback_score(text)
+        try:
+            scores = self.pipeline(text)[0]
+            best = max(scores, key=lambda s: s["score"])
+            return self._map_label(best["label"]), float(best["score"])
+        except Exception:
+            return self._fallback_score(text)
 
-    # --- dataset level ---
+    # --- Review-level API ---
+    def analyze_review(self, text: str) -> list[dict]:
+        """Return one sentiment record per detected aspect for a review."""
+        sentiment, confidence = self.overall_sentiment(text)
+        return [
+            {"aspect": aspect, "sentiment": sentiment, "confidence": confidence}
+            for aspect in self.extract_aspects(text)
+        ]
+
+    # --- Batch API ---
     def run_absa(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Run ABSA over a cleaned reviews DataFrame.
+        """Run ABSA over a cleaned DataFrame.
 
-        Returns one row per (review, aspect) using the schema of
-        data/processed/absa_results.csv.
+        Produces one row per review–aspect pair, carrying through optional
+        metadata columns when present.
         """
-        rows = []
+        records = []
         for _, row in df.iterrows():
-            for ar in self.analyze_review(str(row["review_text"])):
-                rows.append({
-                    "review_id": row.get("review_id"),
-                    "category": row.get("category"),
-                    "product_name": row.get("product_name", "Unknown"),
-                    "aspect": ar["aspect"],
-                    "sentiment": ar["sentiment"],
-                    "confidence": ar["confidence"],
-                    "platform": row.get("platform"),
-                    "country": row.get("country"),
-                    "review_date": row.get("review_date"),
-                })
-        return pd.DataFrame(rows)
+            text = str(row["review_text"])
+            sentiment, confidence = self.overall_sentiment(text)
+            for aspect in self.extract_aspects(text):
+                records.append(
+                    {
+                        "review_id": row.get("review_id"),
+                        "review_text": text,
+                        "aspect": aspect,
+                        "sentiment": sentiment,
+                        "confidence": round(float(confidence), 4),
+                        "category": row.get("category"),
+                        "product_name": row.get("product_name"),
+                        "rating": row.get("rating"),
+                        "platform": row.get("platform"),
+                        "country": row.get("country"),
+                        "review_date": row.get("review_date"),
+                    }
+                )
+        return pd.DataFrame(records)

@@ -1,1 +1,1 @@
-"""RefurbIQ source package — preprocessing, ABSA, and analytics modules."""
+"""RefurbIQ ML pipeline package (preprocessing, ABSA, analytics)."""
