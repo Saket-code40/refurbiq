@@ -16,13 +16,15 @@ REQUIRED_COLUMNS = ["review_text", "category"]
 OPTIONAL_COLUMNS = [
     "review_id",
     "product_name",
+    "brand",
     "rating",
     "platform",
+    "seller",
     "country",
     "review_date",
 ]
 
-SUPPORTED_CATEGORIES = ("Phone", "Laptop")
+SUPPORTED_CATEGORIES = ("Phone", "Laptop", "Camera")
 
 PathOrBuffer = Union[str, "pd.io.common.IOBase"]
 
@@ -62,7 +64,13 @@ def clean_reviews(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Fill gaps in optional columns; unknown ones are ignored.
-    defaults = {"product_name": "Unknown", "platform": "Unknown", "country": "Unknown"}
+    defaults = {
+        "product_name": "Unknown",
+        "brand": "Unknown",
+        "platform": "Unknown",
+        "seller": "Unknown",
+        "country": "Unknown",
+    }
     for col, default in defaults.items():
         if col in df.columns:
             df[col] = df[col].fillna(default)

@@ -65,6 +65,18 @@ ASPECT_KEYWORDS = {
         "price", "value", "worth", "deal", "expensive", "cheap",
         "value for money", "affordable", "cost",
     ],
+    "Repair/Refurbishment": [
+        "refurbishment", "refurb", "repaired", "repair work", "serviced",
+        "third-party parts", "non-original parts", "refurbished to perfection",
+        "factory-fresh", "certified refurbishment", "gaps in the body",
+        "loose screws", "screen replacement",
+    ],
+    "Trust/Authenticity": [
+        "authentic", "genuine", "original", "fake", "counterfeit",
+        "trustworthy", "trust", "scam", "legit", "verified", "imei",
+        "serial number", "tampered", "warranty card", "documents",
+        "certified pre-owned",
+    ],
 }
 
 ASPECTS = list(ASPECT_KEYWORDS)
@@ -220,8 +232,10 @@ class ABSAEngine:
                         "confidence": round(float(confidence), 4),
                         "category": row.get("category"),
                         "product_name": row.get("product_name"),
+                        "brand": row.get("brand"),
                         "rating": row.get("rating"),
                         "platform": row.get("platform"),
+                        "seller": row.get("seller"),
                         "country": row.get("country"),
                         "review_date": row.get("review_date"),
                     }

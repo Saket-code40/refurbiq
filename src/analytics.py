@@ -70,6 +70,54 @@ def sentiment_by_column(results_df: pd.DataFrame, column: str):
     return pivot
 
 
+def get_available_products(results_df: pd.DataFrame) -> dict:
+    """Category -> brand -> list of product names present in the results.
+
+    Drives the cascading Category/Brand/Model selectors in the UI.
+    """
+    catalog: dict[str, dict[str, list[str]]] = {}
+    if results_df is None or results_df.empty:
+        return catalog
+    if "product_name" not in results_df.columns:
+        return catalog
+
+    if "brand" not in results_df.columns:
+        results_df = results_df.assign(brand="Unknown")
+
+    for (category, brand, product), _ in results_df.groupby(
+        ["category", "brand", "product_name"], dropna=True
+    ):
+        catalog.setdefault(category, {}).setdefault(brand, [])
+        if product not in catalog[category][brand]:
+            catalog[category][brand].append(product)
+
+    # Stable sorting for consistent dropdown order.
+    return {
+        cat: {brand: sorted(models) for brand, models in brands.items()}
+        for cat, brands in sorted(catalog.items())
+    }
+
+
+def get_platforms_for_product(
+    results_df: pd.DataFrame, product_name: str
+) -> list[dict]:
+    """Platforms that sell a product, with unique review counts."""
+    if results_df is None or results_df.empty or "platform" not in results_df.columns:
+        return []
+    subset = results_df[results_df["product_name"] == product_name]
+    if subset.empty:
+        return []
+
+    rows = []
+    for platform, plat_df in subset.groupby("platform"):
+        if "review_id" in plat_df.columns and plat_df["review_id"].notna().any():
+            n = int(plat_df["review_id"].nunique())
+        else:
+            n = len(plat_df)
+        rows.append({"platform": platform, "reviews": n})
+    return sorted(rows, key=lambda r: -r["reviews"])
+
+
 def generate_insights(results_df: pd.DataFrame, stats: dict) -> list[str]:
     """Plain-language insights derived only from the computed statistics."""
     insights: list[str] = []

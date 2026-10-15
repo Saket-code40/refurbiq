@@ -18,6 +18,8 @@ from src.analytics import (
     SENTIMENT_ORDER,
     calculate_statistics,
     generate_insights,
+    get_available_products,
+    get_platforms_for_product,
     sentiment_by_column,
 )
 from src.preprocessing import (
@@ -26,6 +28,19 @@ from src.preprocessing import (
     get_category_counts,
     get_missing_summary,
     load_data,
+)
+from src.recommendation import (
+    ASPECT_GROUPS,
+    BEST_FOR_FILTERS,
+    DEFAULT_WEIGHTS,
+    MIN_REVIEWS_THRESHOLD,
+    WEIGHT_LABELS,
+    buying_recommendation,
+    compute_platform_scores,
+    explain_recommendation,
+    get_best_for_filter,
+    rank_platforms,
+    seller_breakdown,
 )
 
 # --- Paths ---
@@ -39,6 +54,15 @@ SENTIMENT_COLORS = {
     "Negative": "#ef4444",
 }
 SENTIMENT_ICONS = {"Positive": "🟢", "Neutral": "🟡", "Negative": "🔴"}
+
+# Recommendation score factors in display order.
+SCORE_FACTORS = list(WEIGHT_LABELS)
+
+CONFIDENCE_BADGES = {
+    "HIGH": "🟢 HIGH confidence",
+    "MEDIUM": "🟡 MEDIUM confidence",
+    "LOW": "🔴 LOW confidence",
+}
 
 
 def _width_kw(element) -> dict:
@@ -80,6 +104,7 @@ def initial_results() -> pd.DataFrame:
         return pd.read_csv(RESULTS_PATH)
     df = clean_reviews(load_data(DEFAULT_CSV_PATH))
     results = analyze_dataframe(df)
+    os.makedirs(os.path.dirname(RESULTS_PATH), exist_ok=True)
     results.to_csv(RESULTS_PATH, index=False)
     return results
 
@@ -101,15 +126,77 @@ def grouped_bar(pivot: pd.DataFrame, x_col: str) -> None:
     show_chart(fig)
 
 
+def product_selector(key_prefix: str):
+    """Cascading Category → Brand → Model selectors driven by analyzed data.
+
+    Returns the selected product name, or None when nothing is usable.
+    """
+    catalog = get_available_products(st.session_state.results)
+    if not catalog:
+        st.info("No analyzed reviews yet — upload a CSV or analyze the sample data first.")
+        return None
+
+    col1, col2, col3 = st.columns(3)
+    categories = list(catalog)
+    with col1:
+        category = st.selectbox("Category", categories, key=f"{key_prefix}_cat")
+    brands = list(catalog.get(category, {}))
+    with col2:
+        brand = st.selectbox("Brand", brands or ["—"], key=f"{key_prefix}_brand")
+    models = catalog.get(category, {}).get(brand, [])
+    with col3:
+        product = st.selectbox(
+            "Product / Model", models or ["—"], key=f"{key_prefix}_model"
+        )
+    return product if product != "—" else None
+
+
+def clear_product_selectors() -> None:
+    """Drop cached selector values after a new dataset is analyzed."""
+    for k in list(st.session_state):
+        if k.endswith(("_cat", "_brand", "_model")):
+            del st.session_state[k]
+
+
 # --- Header ---
 st.title("RefurbIQ")
 st.subheader("Refurbished Product Review Intelligence")
 
+st.info(
+    "Recommendations are based on analyzed review evidence and are not "
+    "guarantees of product quality. The bundled dataset is historical "
+    "sample data, not live marketplace information."
+)
+
 if "results" not in st.session_state:
     st.session_state.results = initial_results()
 
-overview_tab, upload_tab, analyzer_tab, dashboard_tab = st.tabs(
-    ["Overview", "Upload Reviews", "Review Analyzer", "Analytics Dashboard"]
+# Configurable recommendation parameters (edited in the Methodology tab).
+if "weights" not in st.session_state:
+    st.session_state.weights = dict(DEFAULT_WEIGHTS)
+if "min_reviews" not in st.session_state:
+    st.session_state.min_reviews = MIN_REVIEWS_THRESHOLD
+
+(
+    overview_tab,
+    upload_tab,
+    analyzer_tab,
+    dashboard_tab,
+    compare_tab,
+    bestbuy_tab,
+    explain_tab,
+    methodology_tab,
+) = st.tabs(
+    [
+        "Overview",
+        "Upload Reviews",
+        "Review Analyzer",
+        "Analytics Dashboard",
+        "Compare Platforms",
+        "Best Place to Buy",
+        "Explain Recommendation",
+        "Methodology",
+    ]
 )
 
 # --- A. Overview ---
@@ -146,10 +233,11 @@ with upload_tab:
                 counts = get_category_counts(cleaned)
 
                 st.write(f"**File name:** {uploaded.name}")
-                c1, c2, c3 = st.columns(3)
+                c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Reviews", len(cleaned))
                 c2.metric("Phones", counts.get("Phone", 0))
                 c3.metric("Laptops", counts.get("Laptop", 0))
+                c4.metric("Cameras", counts.get("Camera", 0))
 
                 st.write("**Missing-value summary**")
                 st.dataframe(
@@ -161,6 +249,7 @@ with upload_tab:
                 if st.button("Analyze Reviews", type="primary"):
                     results = analyze_dataframe(cleaned)
                     st.session_state.results = results
+                    clear_product_selectors()
                     os.makedirs(os.path.dirname(RESULTS_PATH), exist_ok=True)
                     results.to_csv(RESULTS_PATH, index=False)
                     st.success(f"Analyzed {len(results)} review–aspect pairs.")
@@ -274,3 +363,250 @@ with dashboard_tab:
         st.subheader("Key Insights")
         for insight in generate_insights(results_df, stats):
             st.write(f"• {insight}")
+
+# --- E. Compare Platforms ---
+with compare_tab:
+    st.subheader("Compare Platforms")
+    product = product_selector("compare")
+
+    if product:
+        platforms = get_platforms_for_product(st.session_state.results, product)
+        if platforms:
+            st.write(
+                "Available platforms for this product: "
+                + ", ".join(
+                    f"{p['platform']} ({p['reviews']} reviews)" for p in platforms
+                )
+            )
+
+        scores_df = compute_platform_scores(
+            st.session_state.results, product, st.session_state.weights
+        )
+
+        if scores_df.empty:
+            st.warning("No analyzed reviews found for this product.")
+        else:
+            table = scores_df.rename(
+                columns={
+                    "platform": "Platform",
+                    "reviews": "Reviews",
+                    "positive_pct": "Positive %",
+                    "neutral_pct": "Neutral %",
+                    "negative_pct": "Negative %",
+                    "overall": "Score /10",
+                    "confidence": "Confidence",
+                }
+            )[
+                [
+                    "Platform",
+                    "Reviews",
+                    "Positive %",
+                    "Neutral %",
+                    "Negative %",
+                    "Score /10",
+                    "Confidence",
+                ]
+            ]
+            st.dataframe(table, hide_index=True, **_width_kw(st.dataframe))
+
+            below = scores_df[scores_df["reviews"] < st.session_state.min_reviews]
+            if not below.empty:
+                st.caption(
+                    "⚠️ " + ", ".join(below["platform"]) + " shown for reference "
+                    f"but excluded from rankings — fewer than "
+                    f"{st.session_state.min_reviews} unique reviews."
+                )
+
+            # Radar chart of sub-scores per platform.
+            radar_df = scores_df.melt(
+                id_vars="platform",
+                value_vars=SCORE_FACTORS,
+                var_name="factor",
+                value_name="score",
+            )
+            radar_df["factor"] = radar_df["factor"].map(WEIGHT_LABELS)
+            fig = px.line_polar(
+                radar_df,
+                r="score",
+                theta="factor",
+                color="platform",
+                line_close=True,
+                range_r=[0, 10],
+            )
+            fig.update_traces(fill="toself")
+            fig.update_layout(height=450, margin=dict(t=30))
+            show_chart(fig)
+
+            # "Best for X" quick rankings.
+            st.subheader("Best for…")
+            cols = st.columns(4)
+            for i, (label, aspects) in enumerate(BEST_FOR_FILTERS):
+                best = get_best_for_filter(
+                    st.session_state.results,
+                    aspects,
+                    product,
+                    st.session_state.min_reviews,
+                )
+                with cols[i % len(cols)]:
+                    if best:
+                        st.metric(
+                            label,
+                            best["platform"],
+                            help=(
+                                f"{best['score']:.1f}/10 from "
+                                f"{best['reviews']} reviews"
+                            ),
+                        )
+                    else:
+                        st.metric(label, "Insufficient data")
+
+            # Seller-level sentiment, only where seller data exists.
+            sellers = seller_breakdown(st.session_state.results, product)
+            if sellers is not None and not sellers.empty:
+                with st.expander("Seller-level sentiment (where available)"):
+                    st.caption(
+                        "Shown only where individual seller information exists. "
+                        "Seller quality is never inferred from platform-level "
+                        "sentiment."
+                    )
+                    st.dataframe(sellers, hide_index=True, **_width_kw(st.dataframe))
+
+# --- F. Best Place to Buy ---
+with bestbuy_tab:
+    st.subheader("Best Place to Buy")
+    product = product_selector("bestbuy")
+
+    if product:
+        rec = buying_recommendation(
+            st.session_state.results,
+            product,
+            st.session_state.weights,
+            st.session_state.min_reviews,
+        )
+
+        st.write(f"**Reviews analyzed:** {rec['reviews_analyzed']}")
+        st.caption("Recommendation based on available historical review data.")
+
+        if rec["recommended"] is None:
+            st.warning(
+                "The data is insufficient to recommend a platform for this "
+                "product. " + " ".join(rec["warnings"])
+            )
+        else:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Recommended platform", f"🥇 {rec['recommended']}")
+            c2.metric("Recommendation score", f"{rec['overall']:.1f} / 10")
+            c3.metric("Confidence", CONFIDENCE_BADGES[rec["confidence"]])
+            if rec["runner_up"]:
+                st.caption(f"Runner-up: {rec['runner_up']}")
+
+            st.markdown("**Why?**")
+            for reason in rec["why"]:
+                st.write(f"• {reason}")
+
+            st.markdown("**⚠️ Things to check before purchasing**")
+            if rec["warnings"]:
+                for warning in rec["warnings"]:
+                    st.write(f"• {warning}")
+            else:
+                st.write("• No major red flags found in the analyzed reviews.")
+
+# --- G. Explain Recommendation ---
+with explain_tab:
+    st.subheader("Explain Recommendation")
+    product = product_selector("explain")
+
+    if product:
+        ranked = rank_platforms(
+            st.session_state.results,
+            product,
+            st.session_state.weights,
+            st.session_state.min_reviews,
+        )
+        explanation = explain_recommendation(
+            ranked,
+            st.session_state.results,
+            product,
+            st.session_state.min_reviews,
+        )
+        st.info(explanation)
+
+        scores_df = compute_platform_scores(
+            st.session_state.results, product, st.session_state.weights
+        )
+        if not scores_df.empty:
+            st.markdown("#### Factor-by-factor breakdown")
+            breakdown = scores_df.set_index("platform")[SCORE_FACTORS].copy()
+            breakdown = breakdown.rename(columns=WEIGHT_LABELS).T
+            st.dataframe(
+                breakdown.style.highlight_max(axis=1, color="#dcfce7"),
+                **_width_kw(st.dataframe),
+            )
+            st.caption(
+                "Scores are 0–10. Green highlights the best platform for "
+                "each factor. Platforms below the minimum review threshold "
+                "are shown but not ranked."
+            )
+
+# --- H. Methodology ---
+with methodology_tab:
+    st.subheader("Methodology")
+
+    st.markdown("#### How the recommendation score works")
+    st.markdown(
+        "Each sub-score is **0–10**, computed from the sentiment distribution "
+        "of the analyzed aspect mentions:\n\n"
+        "`sub-score = (Positive% × 1.0 + Neutral% × 0.5 + Negative% × 0.0) / 10`\n\n"
+        "The **Overall Recommendation Score** is the weighted sum:"
+    )
+    formula = " + ".join(WEIGHT_LABELS.values())
+    st.code(f"Overall = {formula}", language=None)
+
+    st.markdown("#### Configure weights")
+    st.caption(
+        "Weights are re-normalised automatically, so they don't need to sum to 1. "
+        "Changes apply to every recommendation tab immediately."
+    )
+    for key, label in WEIGHT_LABELS.items():
+        st.session_state.weights[key] = st.slider(
+            label,
+            0.0,
+            0.5,
+            float(st.session_state.weights[key]),
+            0.05,
+            key=f"weight_{key}",
+        )
+    st.caption(f"Current weight sum: {sum(st.session_state.weights.values()):.2f}")
+
+    st.markdown("#### Minimum review threshold")
+    st.session_state.min_reviews = st.slider(
+        "Platforms with fewer unique reviews than this are excluded from rankings",
+        5,
+        100,
+        st.session_state.min_reviews,
+        5,
+        key="min_reviews_slider",
+    )
+
+    st.markdown("#### Confidence levels")
+    st.markdown(
+        "- **HIGH** — at least 50 reviews and consistent sentiment\n"
+        "- **MEDIUM** — at least the minimum threshold of reviews\n"
+        "- **LOW** — below the threshold; no recommendation is made"
+    )
+
+    st.markdown("#### Score components")
+    for factor, label in WEIGHT_LABELS.items():
+        if factor == "sentiment":
+            source = "all analyzed aspect mentions"
+        else:
+            source = ", ".join(ASPECT_GROUPS[factor])
+        st.write(f"- **{label}** — sentiment over: {source}")
+
+    st.divider()
+    st.caption(
+        "This tool analyzes review evidence only. It does not verify current "
+        "prices, availability, warranties or real-time seller performance. "
+        "A recommendation is evidence about past buyer sentiment, not a "
+        "guarantee of product quality."
+    )
