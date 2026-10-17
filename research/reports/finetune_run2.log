@@ -1,0 +1,35 @@
+device=cpu torch_threads=8
+train=2475 val=536 test=537
+Loading weights:   0%|          | 0/100 [00:00<?, ?it/s]Loading weights:  39%|███▉      | 39/100 [00:00<00:00, 337.30it/s]Loading weights:  73%|███████▎  | 73/100 [00:00<00:00, 262.39it/s]Loading weights: 100%|██████████| 100/100 [00:00<00:00, 321.23it/s]
+[transformers] [1mDistilBertForSequenceClassification LOAD REPORT[0m from: distilbert-base-uncased
+Key                     | Status     | 
+------------------------+------------+-
+vocab_transform.bias    | UNEXPECTED | 
+vocab_layer_norm.weight | UNEXPECTED | 
+vocab_layer_norm.bias   | UNEXPECTED | 
+vocab_projector.bias    | UNEXPECTED | 
+vocab_transform.weight  | UNEXPECTED | 
+classifier.weight       | MISSING    | 
+pre_classifier.weight   | MISSING    | 
+classifier.bias         | MISSING    | 
+pre_classifier.bias     | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+  epoch 1 step 25/155 loss=1.0550
+  epoch 1 step 50/155 loss=0.8657
+  epoch 1 step 75/155 loss=0.8641
+  epoch 1 step 100/155 loss=0.7248
+  epoch 1 step 125/155 loss=0.5731
+  epoch 1 step 150/155 loss=0.3407
+epoch 1: validation macro F1 = 0.8984
+  epoch 2 step 25/155 loss=0.5413
+  epoch 2 step 50/155 loss=0.4304
+  epoch 2 step 75/155 loss=0.4171
+  epoch 2 step 100/155 loss=0.4953
+  epoch 2 step 125/155 loss=0.4516
+  epoch 2 step 150/155 loss=0.5149
+epoch 2: validation macro F1 = 0.8860
+/usr/lib64/python3.14/multiprocessing/resource_tracker.py:475: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/loky-131966-v50n58p_'}
+  warnings.warn(

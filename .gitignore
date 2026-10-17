@@ -11,6 +11,10 @@ env/
 # Streamlit
 .streamlit/secrets.toml
 
+# Trained model weights (~256 MB) — regenerate with
+# research/scripts/finetune_bert.py instead of storing in git
+models/
+
 # OS / editor
 .DS_Store
 .idea/

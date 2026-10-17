@@ -1,0 +1,6 @@
+Model,Accuracy,Macro precision,Macro recall,Macro F1-score
+Logistic Regression,0.9069,0.9167,0.8801,0.8937
+Random Forest,0.8715,0.862,0.8496,0.8549
+XGBoost,0.8696,0.8577,0.8476,0.852
+BERT-based model (zero-shot),0.7058,0.6705,0.6518,0.6578
+BERT-based model (fine-tuned DistilBERT),0.8957,0.9092,0.8627,0.8784

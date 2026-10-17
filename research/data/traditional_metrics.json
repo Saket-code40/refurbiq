@@ -1,0 +1,71 @@
+{
+  "seed": 42,
+  "unit_of_analysis": "aspect annotation (evidence_phrase)",
+  "split": "review-level stratified 70/15/15",
+  "vectorizer": {
+    "type": "TfidfVectorizer",
+    "ngram_range": [
+      1,
+      2
+    ],
+    "max_features": 20000,
+    "sublinear_tf": true
+  },
+  "label_set": [
+    "positive",
+    "neutral",
+    "negative"
+  ],
+  "provenance": "SYNTHETIC demonstration dataset (generate_dataset.py v1)",
+  "models": {
+    "Logistic Regression": {
+      "accuracy": 0.9069,
+      "macro_precision": 0.9167,
+      "macro_recall": 0.8801,
+      "macro_f1": 0.8937,
+      "class_recall": {
+        "positive": 0.968,
+        "neutral": 0.7478,
+        "negative": 0.9244
+      },
+      "class_support": {
+        "positive": 250,
+        "neutral": 115,
+        "negative": 172
+      },
+      "chosen_C": 0.5
+    },
+    "Random Forest": {
+      "accuracy": 0.8715,
+      "macro_precision": 0.862,
+      "macro_recall": 0.8496,
+      "macro_f1": 0.8549,
+      "class_recall": {
+        "positive": 0.92,
+        "neutral": 0.7391,
+        "negative": 0.8895
+      },
+      "class_support": {
+        "positive": 250,
+        "neutral": 115,
+        "negative": 172
+      }
+    },
+    "XGBoost": {
+      "accuracy": 0.8696,
+      "macro_precision": 0.8577,
+      "macro_recall": 0.8476,
+      "macro_f1": 0.852,
+      "class_recall": {
+        "positive": 0.92,
+        "neutral": 0.7391,
+        "negative": 0.8837
+      },
+      "class_support": {
+        "positive": 250,
+        "neutral": 115,
+        "negative": 172
+      }
+    }
+  }
+}

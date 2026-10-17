@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.8957,
+  "macro_precision": 0.9092,
+  "macro_recall": 0.8627,
+  "macro_f1": 0.8784,
+  "class_recall": {
+    "positive": 0.968,
+    "neutral": 0.6957,
+    "negative": 0.9244
+  },
+  "class_support": {
+    "positive": 250,
+    "neutral": 115,
+    "negative": 172
+  },
+  "configuration": "fine-tuned 1 epochs, best-epoch 1 on validation",
+  "checkpoint": "distilbert-base-uncased",
+  "epochs": 1,
+  "batch_size": 16,
+  "max_length": 128,
+  "learning_rate": 2e-05,
+  "weight_decay": 0.01,
+  "device": "cpu",
+  "seed": 42,
+  "n_test": 537,
+  "provenance": "SYNTHETIC demonstration dataset (generate_dataset.py v2)"
+}

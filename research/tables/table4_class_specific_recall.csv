@@ -1,0 +1,6 @@
+Model,Positive recall,Negative recall,Neutral recall,Test support (pos/neg/neu)
+Logistic Regression,0.968,0.9244,0.7478,250/172/115
+Random Forest,0.92,0.8895,0.7391,250/172/115
+XGBoost,0.92,0.8837,0.7391,250/172/115
+BERT-based model (zero-shot),0.852,0.686,0.4174,250/172/115
+BERT-based model (fine-tuned DistilBERT),0.968,0.9244,0.6957,250/172/115
