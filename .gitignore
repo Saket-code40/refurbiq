@@ -19,3 +19,5 @@ models/
 .DS_Store
 .idea/
 .vscode/
+# Large real-review parquet (25 MB; re-downloadable from HF)
+research/data/real/amazon_train.parquet

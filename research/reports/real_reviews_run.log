@@ -1,0 +1,52 @@
+loaded 200000 real reviews from amazon_train.parquet
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights:  31%|███       | 62/201 [00:00<00:00, 462.46it/s]Loading weights:  54%|█████▍    | 109/201 [00:00<00:00, 316.27it/s]Loading weights:  71%|███████   | 143/201 [00:00<00:00, 254.26it/s]Loading weights:  85%|████████▍ | 170/201 [00:00<00:00, 233.18it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 286.13it/s]
+sampling 2000 reviews; model: nlptown/bert-base-multilingual-uncased-sentiment
+  100/2000 reviews (13s)
+  200/2000 reviews (22s)
+  300/2000 reviews (30s)
+  400/2000 reviews (40s)
+  500/2000 reviews (50s)
+  600/2000 reviews (59s)
+  700/2000 reviews (67s)
+  800/2000 reviews (76s)
+  900/2000 reviews (85s)
+  1000/2000 reviews (93s)
+  1100/2000 reviews (101s)
+  1200/2000 reviews (109s)
+  1300/2000 reviews (119s)
+  1400/2000 reviews (127s)
+  1500/2000 reviews (135s)
+  1600/2000 reviews (144s)
+  1700/2000 reviews (152s)
+  1800/2000 reviews (160s)
+  1900/2000 reviews (169s)
+  2000/2000 reviews (179s)
+
+=== REAL DATA RESULTS ===
+reviews sampled:        2000
+aspect annotations:     2460
+aspect coverage:        47.5% of reviews mention >=1 known aspect
+predicted-vs-star agreement (per annotation): 0.756
+
+aspect frequency (top):
+aspect
+General           1050
+Price/Value        302
+Accessories        188
+Return/Refund      164
+Delivery           116
+Packaging          111
+Performance        109
+Camera             105
+Battery             82
+Condition           76
+Seller Service      62
+Display             57
+
+sentiment distribution (predicted):
+predicted_sentiment
+negative    0.442
+positive    0.370
+neutral     0.188
+
+saved: real_aspect_annotations.csv, real_reviews_sample.csv
