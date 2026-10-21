@@ -995,7 +995,7 @@ def build_body(doc):
         "demonstration corpus). Each annotation stores the review id, the "
         "detected aspect, the evidence phrase and the label."
     ))
-    caption(doc, "Table B.1: Sample annotations (page n/a)")
+    caption(doc, f"Table B.1: Sample annotations (page {pg('tab:B.1')})")
     ann = pd.read_csv(DATA / "aspect_annotations.csv")
     sample = ann.sample(6, random_state=42)
     add_table(
@@ -1085,7 +1085,7 @@ def render_and_fill():
         replacements[f"toc:{key}"] = str(pgno - (body_start - 1)) if pgno else "?"
         # rebase to chapter numbering: body_start page = page 1
     # table / figure caption pages (chapter-numbered)
-    for key in ("3.1", "3.2", "3.3", "4.1", "4.2", "4.3", "4.4", "4.5"):
+    for key in ("3.1", "3.2", "3.3", "4.1", "4.2", "4.3", "4.4", "4.5", "B.1"):
         pgno = find_page(f"Table {key}:", body_start)
         if pgno:
             replacements[f"tab:{key}"] = str(pgno - (body_start - 1))
