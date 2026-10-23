@@ -1,9 +1,9 @@
 """Build the DSE3170 PBL-3 report for RefurbIQ from the official template.
 
 Strategy (two passes):
-  pass 1  - copy the template, delete the guideline pages, fill the front
-            matter, append TOC + chapters + references + appendices with
-            page-number tokens («pg:KEY»), save.
+  pass 1  - copy the template, fill the cover textboxes and front matter,
+            delete the guideline pages, append TOC + chapters + references +
+            appendices with page-number tokens («pg:KEY»), save.
   pass 2  - render to PDF with LibreOffice, locate the real page of each
             heading/table/figure caption, replace the tokens, save again.
 
@@ -11,7 +11,8 @@ Formatting follows the template's General Guidelines:
   A4, 0.7" margins, Times New Roman, body 12pt justified 1.15 spacing,
   headings 14pt bold, sub-headings 12pt italic, table captions above
   tables, figure captions below figures, IEEE references, page numbers
-  bottom-right starting at 1 from Chapter 1.
+  bottom-right starting at 1 from Chapter 1, no page numbers on the
+  front matter.
 
 Integrity: every number is read from research/data/* or research/tables/*
 (computed outputs, synthetic-demo-v1 unless stated); unfilled personal
@@ -24,8 +25,8 @@ Usage:
 
 from __future__ import annotations
 
+import copy
 import json
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -40,14 +41,15 @@ from docx import Document
 from docx.enum.section import WD_SECTION_START
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_TAB_LEADER
 from docx.oxml.ns import qn
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_LINE_SPACING
+from docx.shared import Inches, Pt
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 DATA = ROOT / "research" / "data"
 TABLES = ROOT / "research" / "tables"
 FIGDIR = HERE / "figures"
+DIAGRAMS = ROOT / "diagrams"
 TEMPLATE = Path.home() / "Downloads" / "DSE 3170 PBL 3 Report Format Final.docx"
 OUT = HERE / "RefurbIQ_PBL3_Report.docx"
 
@@ -57,10 +59,23 @@ TITLE = (
 )
 SUBTITLE = "A Comparative Evaluation of Traditional Machine Learning and BERT"
 
+STUDENT = "Saket Sharma (2430010408)"
+MENTOR = "Dr Ashish Pandey"
+
 ASPECT_ORDER = [
     "Product condition", "Battery health", "Performance", "Price and value",
     "Packaging and delivery", "Repair and refurbishment quality",
     "Seller and customer service", "Returns and refunds", "Trust and authenticity",
+]
+LABELS = ["positive", "neutral", "negative"]
+
+# prediction columns in model_predictions.csv -> display names (table order)
+PRED_COLS = [
+    ("pred_logreg", "Logistic Regression"),
+    ("pred_random_forest", "Random Forest"),
+    ("pred_xgboost", "XGBoost"),
+    ("pred_bert_zeroshot", "BERT-based model (zero-shot)"),
+    ("pred_bert_finetuned", "BERT-based model (fine-tuned DistilBERT)"),
 ]
 
 # ---------------------------------------------------------------- helpers
@@ -93,7 +108,7 @@ def para(doc, text="", size=12, bold=False, italic=False,
     return p
 
 
-def heading(doc, text, number_key=None):
+def heading(doc, text):
     """Chapter heading: 14pt bold TNR (guideline 'Heading').
 
     Every chapter-level heading starts on a new page, which keeps the
@@ -187,8 +202,6 @@ def add_figure(doc, path, cap_key, cap_text, width=5.6):
     run = p.add_run()
     run.add_picture(str(path), width=Inches(width))
     caption(doc, f"Figure {cap_key}: {cap_text} (page {pg('fig:' + cap_key)})")
-    # the caption itself carries the token for pass 2; list-of-figures
-    # entries use the same key
 
 
 def add_page_number_footer(section):
@@ -216,6 +229,61 @@ def toc_entry(doc, text, key, level=0):
     set_run(p.add_run(), text, bold=(level == 0))
     set_run(p.add_run(), "\t" + pg("toc:" + key))
     return p
+
+
+def rewrite_paragraph(p, text, size=None, bold=None):
+    """Replace a paragraph's runs with a single run, cloning base format."""
+    base = None
+    for r in p.runs:
+        if r.text.strip():
+            base = r
+            break
+    for r in list(p.runs):
+        r._r.getparent().remove(r._r)
+    run = p.add_run(text)
+    run.font.name = "Times New Roman"
+    if base is not None and base.font.size:
+        run.font.size = base.font.size
+    if size:
+        run.font.size = Pt(size)
+    if bold is not None:
+        run.font.bold = bold
+
+
+# ---------------------------------------------------------------- data
+
+
+def load_test_predictions() -> pd.DataFrame:
+    """Test-partition predictions for all five models, joined with the
+    annotation text. Everything downstream (confusion matrices, per-class
+    metrics, error examples) is computed from this file - nothing is
+    hand-entered."""
+    preds = pd.read_csv(DATA / "model_predictions.csv")
+    ann = pd.read_csv(DATA / "aspect_annotations.csv")
+    df = preds.merge(
+        ann[["annotation_id", "review_id", "aspect", "evidence_phrase"]],
+        on="annotation_id", how="left", validate="one_to_one",
+    )
+    return df
+
+
+def cm_rows(preds: pd.DataFrame, col: str) -> list[list]:
+    """Confusion-matrix rows [true label, pos, neu, neg, row total]."""
+    cm = confusion_matrix(preds["gold_label"], preds[col], labels=LABELS)
+    rows = []
+    for lab, counts in zip(["Positive", "Neutral", "Negative"], cm):
+        rows.append([f"{lab} (true)", int(counts[0]), int(counts[1]),
+                     int(counts[2]), int(counts.sum())])
+    return rows
+
+
+def per_class_prf(preds: pd.DataFrame, col: str) -> list[list]:
+    p, r, f1, sup = precision_recall_fscore_support(
+        preds["gold_label"], preds[col], labels=LABELS,
+        average=None, zero_division=0,
+    )
+    return [[lab, f"{x:.4f}", f"{y:.4f}", f"{z:.4f}", int(s)]
+            for lab, x, y, z, s in zip(LABELS, p, r, f1, sup)]
 
 
 # ---------------------------------------------------------------- figures
@@ -334,44 +402,83 @@ def make_figures(t1, t2, t3, t4, t5, t6, real):
         fig.savefig(FIGDIR / "fig_real_agreement.png", dpi=150)
         plt.close(fig)
 
+        # Fig 4.6 real-review confusion matrix (human star label vs pipeline)
+        cm = confusion_matrix(real.human_sentiment, real.predicted_sentiment,
+                              labels=LABELS)
+        fig, ax = plt.subplots(figsize=(5.6, 4.6))
+        im = ax.imshow(cm, cmap="Blues")
+        ax.set_xticks(range(3))
+        ax.set_xticklabels(["Positive", "Neutral", "Negative"])
+        ax.set_yticks(range(3))
+        ax.set_yticklabels(["Positive", "Neutral", "Negative"])
+        ax.set_xlabel("Predicted (pipeline)")
+        ax.set_ylabel("Human (star rating)")
+        for i in range(3):
+            for j in range(3):
+                ax.text(j, i, str(int(cm[i, j])), ha="center", va="center",
+                        fontsize=11,
+                        color="white" if cm[i, j] > cm.max() / 2 else "black")
+        ax.set_title("Predicted vs human sentiment (real Amazon reviews)")
+        fig.colorbar(im, ax=ax, shrink=0.85)
+        fig.tight_layout()
+        fig.savefig(FIGDIR / "fig_real_confusion.png", dpi=150)
+        plt.close(fig)
+
 
 # ---------------------------------------------------------------- front matter
 
 
-def rewrite_paragraph(p, text, size=None, bold=None):
-    """Replace a paragraph's runs with a single run, cloning base format."""
-    base = None
-    for r in p.runs:
-        if r.text.strip():
-            base = r
-            break
-    for r in list(p.runs):
-        r._r.getparent().remove(r._r)
-    run = p.add_run(text)
-    run.font.name = "Times New Roman"
-    if base is not None and base.font.size:
-        run.font.size = base.font.size
-    if size:
-        run.font.size = Pt(size)
-    if bold is not None:
-        run.font.bold = bold
+def _tb_set_text(p_elem, text):
+    """Set the text of a textbox paragraph, keeping the first run's format."""
+    runs = p_elem.findall(qn("w:r"))
+    if not runs:
+        return
+    base = runs[0]
+    for r in runs:
+        p_elem.remove(r)
+    new_r = copy.deepcopy(base)
+    for child in list(new_r):
+        if child.tag != qn("w:rPr"):
+            new_r.remove(child)
+    t = new_r.makeelement(qn("w:t"), {})
+    t.set(qn("xml:space"), "preserve")
+    t.text = text
+    new_r.append(t)
+    p_elem.append(new_r)
+
+
+def fill_cover_textboxes(doc):
+    """Fill the template's floating cover-page textboxes (they are not part
+    of doc.paragraphs): project title, single student line, guide name."""
+    replacements = {
+        "TITLE_OF_PROJECT": TITLE,
+        "Student Name1(Student1 Registration Number)": STUDENT,
+        "Guide Name": MENTOR,
+    }
+    for tb in doc.element.body.iter(qn("w:txbxContent")):
+        for p in list(tb.findall(qn("w:p"))):
+            text = "".join(t.text or "" for t in p.iter(qn("w:t"))).strip()
+            if text in replacements:
+                _tb_set_text(p, replacements[text])
+            elif text.startswith("Student Name2"):
+                tb.remove(p)  # single-student project: drop the extra lines
+
+
+def blank_front_footers(doc):
+    """No page numbers before Chapter 1: give every front-matter section an
+    explicit empty footer (the body section is the last one)."""
+    for sec in doc.sections[:-1]:
+        footer = sec.footer
+        footer.is_linked_to_previous = False
+        for p in footer.paragraphs:
+            for r in list(p.runs):
+                r._r.getparent().remove(r._r)
 
 
 def fill_front_matter(doc):
     paras = doc.paragraphs
 
-    # --- cover page: insert project title before the school lines -------
-    school = next(p for p in paras if p.text.strip().startswith("School of "))
-    for text, size, bold, italic in [
-        (TITLE, 16, True, False),
-        (SUBTITLE, 13, False, True),
-        ("DSE3170 Project Based Learning-3 Report", 13, True, False),
-        ("", 12, False, False),
-    ][:3] + [("", 12, False, False)]:
-        p = school.insert_paragraph_before()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(6)
-        set_run(p.add_run(), text, size=size, bold=bold, italic=italic)
+    fill_cover_textboxes(doc)
 
     # --- certificate ------------------------------------------------------
     cert = next(p for p in paras if p.text.strip().startswith("This is to certify"))
@@ -379,7 +486,7 @@ def fill_front_matter(doc):
         cert,
         "This is to certify that the project-based learning project titled "
         f"\u201c{TITLE}\u201d is a record of the bonafide work done by "
-        "Saket Sharma ([REG NO]), submitted in partial fulfilment of the "
+        f"{STUDENT}, submitted in partial fulfilment of the "
         "requirements for the Computer Science and Engineering (Data Science) "
         "program of Manipal University Jaipur, Jaipur during the academic "
         "year 2025-26.",
@@ -387,7 +494,7 @@ def fill_front_matter(doc):
     for p in paras:
         t = p.text.strip()
         if t == "Guide Name":
-            rewrite_paragraph(p, "[Guide Name]", bold=True)
+            rewrite_paragraph(p, MENTOR, bold=True)
         elif t == "Class Coordinator Name":
             rewrite_paragraph(p, "[Class Coordinator Name]", bold=True)
 
@@ -440,6 +547,8 @@ def fill_front_matter(doc):
     for p in paras[start:]:
         p._element.getparent().remove(p._element)
 
+    blank_front_footers(doc)
+
 
 def fill_lists(doc, table_list, figure_list):
     """Fill the List of Tables / List of Figures template tables."""
@@ -469,6 +578,12 @@ def build_body(doc):
     pgNumType = sectPr.makeelement(qn("w:pgNumType"), {qn("w:start"): "1"})
     sectPr.append(pgNumType)
 
+    preds = load_test_predictions()
+    ann_all = pd.read_csv(DATA / "aspect_annotations.csv")
+    rev_all = pd.read_csv(DATA / "reviews.csv")
+    split = pd.read_csv(DATA / "split_assignment.csv")
+    real = pd.read_csv(DATA / "real" / "real_aspect_annotations.csv")
+
     # ================= TABLE OF CONTENTS =================
     para(doc, "TABLE OF CONTENTS", size=16, bold=True,
          align=WD_ALIGN_PARAGRAPH.CENTER, space_after=12)
@@ -495,6 +610,7 @@ def build_body(doc):
         ("3.4 Pre-processing and Partitioning", "3.4", 1),
         ("3.5 Models and Hyperparameters", "3.5", 1),
         ("3.6 Evaluation Protocol", "3.6", 1),
+        ("3.7 Evaluation Metrics", "3.7", 1),
         ("4. Results and Discussion", "4", 0),
         ("4.1 Dataset Profile", "4.1", 1),
         ("4.2 Model Comparison", "4.2", 1),
@@ -502,13 +618,23 @@ def build_body(doc):
         ("4.4 Aspect-Level Sentiment", "4.4", 1),
         ("4.5 Cross-Platform Analysis", "4.5", 1),
         ("4.6 Validation on Real Reviews", "4.6", 1),
+        ("4.7 Confusion Matrix Analysis", "4.7", 1),
+        ("4.8 Error Analysis", "4.8", 1),
+        ("4.9 Agreement by Aspect on Real Reviews", "4.9", 1),
+        ("4.10 Hypothesis Outcomes", "4.10", 1),
+        ("4.11 Error Flows on Real Reviews", "4.11", 1),
+        ("4.12 Aspect-Wise Label Distribution", "4.12", 1),
         ("5. Outcome and Deliverables", "5", 0),
         ("5.1 Research Output", "5.1", 1),
-        ("5.2 Deliverables", "5.2", 1),
+        ("5.2 System Design and Implementation", "5.2", 1),
+        ("5.3 Deliverables", "5.3", 1),
         ("6. Conclusion and Future Scope", "6", 0),
         ("References", "refs", 0),
         ("Appendix A. Reproducibility", "appa", 0),
         ("Appendix B. Annotation Samples", "appb", 0),
+        ("Appendix C. Aspect-Wise Counts by Platform", "appc", 0),
+        ("Appendix D. Per-Class Precision, Recall and F1", "appd", 0),
+        ("Appendix E. Corpus Statistics", "appe", 0),
     ]
     for text, key, level in toc:
         toc_entry(doc, text, key, level)
@@ -547,11 +673,23 @@ def build_body(doc):
         "and for refurbished electronics on Indian marketplaces, no systematic "
         "comparison exists."
     ))
+    para(doc, (
+        "The asymmetry of information is sharper for refurbished goods than for "
+        "any other consumer electronics category. For a new device, the buyer can "
+        "assume factory condition; for a refurbished one, every quality attribute "
+        "- battery capacity, cosmetic grade, part originality, repair history - "
+        "is a claim made by the seller that the buyer cannot verify before "
+        "purchase. Reviews from earlier buyers are the only scalable signal about "
+        "whether those claims hold, which is precisely why aspect-level analysis "
+        "of such reviews is valuable: it converts free-text experience reports "
+        "into per-attribute evidence."
+    ))
     subheading(doc, "1.2 Objectives of the Project")
     bullets(doc, [
         "Define a nine-aspect taxonomy for refurbished-electronics reviews and tag every aspect mention with an evidence phrase and a polarity label.",
         "Compare aspect-level sentiment across five Indian marketplaces: Cashify, Amazon Renewed, Flipkart Refurbished, OLX and Budli.",
         "Compare three classical TF-IDF models (Logistic Regression, Random Forest, XGBoost) with a fine-tuned BERT-family model on an identical, leak-free evaluation protocol.",
+        "Validate the pipeline against human ground truth using real reviews with star ratings.",
         "Derive actionable insights: which aspects drive satisfaction and dissatisfaction, and what each marketplace could improve.",
     ])
     subheading(doc, "1.3 Research Questions and Hypotheses")
@@ -570,7 +708,8 @@ def build_body(doc):
         "condition concerns differ across platforms; H4 BERT and traditional "
         "models differ in performance. The expectation that peer-to-peer channels "
         "may show more trust and condition complaints remains a hypothesis until "
-        "verified reviews are available."
+        "verified reviews are available. Section 4.10 maps each hypothesis to its "
+        "outcome on the demonstration corpus."
     ))
     subheading(doc, "1.4 Scope and Contributions")
     para(doc, (
@@ -585,14 +724,26 @@ def build_body(doc):
         "demonstration dataset, and the pipeline is separately validated on real "
         "Amazon reviews."
     ))
+    para(doc, (
+        "Concretely, the project contributes: (i) a domain-specific nine-aspect "
+        "taxonomy with keyword vocabularies; (ii) a leak-free evaluation protocol "
+        "(review-level stratified partitioning, single test use, macro and "
+        "per-class metrics); (iii) a five-model comparison in which a classical "
+        "linear model and a fine-tuned transformer are scored on identical "
+        "examples; (iv) a real-review validation against human star ratings; and "
+        "(v) a documented account of platform data accessibility that future work "
+        "can build on."
+    ))
     subheading(doc, "1.5 Organisation of the Report")
     para(doc, (
         "Chapter 2 surveys the literature and identifies the research gap. "
         "Chapter 3 describes the methodology: platform verification, dataset "
-        "construction, the aspect taxonomy, partitioning, models and the "
-        "evaluation protocol. Chapter 4 reports results and discussion. Chapter 5 "
-        "lists outcomes and deliverables, Chapter 6 concludes and outlines future "
-        "work, followed by references and appendices."
+        "construction, the aspect taxonomy, partitioning, models, the evaluation "
+        "protocol and the metric definitions. Chapter 4 reports results and "
+        "discussion, including confusion matrices, error analysis and the "
+        "real-review validation. Chapter 5 lists outcomes, the system design and "
+        "deliverables, Chapter 6 concludes and outlines future work, followed by "
+        "references and appendices."
     ))
 
     # ================= 2. LITERATURE SURVEY =================
@@ -602,7 +753,8 @@ def build_body(doc):
         "of mouth, sentiment analysis, aspect-based sentiment analysis, classical "
         "opinion mining and transformer models. To the best of our knowledge, no "
         "study applies aspect-level sentiment analysis to refurbished electronics "
-        "across Indian marketplaces."
+        "across Indian marketplaces. Table 2.1 summarises each source and how it "
+        "is used in this project."
     ))
     subheading(doc, "2.1 Online Reviews and Electronic Word of Mouth")
     para(doc, (
@@ -612,6 +764,13 @@ def build_body(doc):
         "quality is uncertain by definition, review evidence carries more weight "
         "than for new products."
     ))
+    para(doc, (
+        "The same asymmetry motivates the metric choices in this project: since "
+        "negative evidence is disproportionately informative, the evaluation "
+        "tracks per-class recall for the negative class explicitly rather than "
+        "relying on accuracy alone, which a majority-positive corpus would "
+        "inflate."
+    ))
     subheading(doc, "2.2 Sentiment Analysis and Opinion Mining")
     para(doc, (
         "Liu formalised sentiment analysis and opinion mining as a field [2], and "
@@ -619,6 +778,16 @@ def build_body(doc):
         "as its canonical task [3]. Hu and Liu's feature-based opinion mining "
         "showed that opinions attach to specific product features rather than to "
         "the product as a whole [4] - the direct precursor of aspect-level work."
+    ))
+    para(doc, (
+        "Two of Liu's distinctions carry directly into the system design. First, "
+        "an opinion is a tuple of target, holder, polarity and time; this project "
+        "records the target (aspect), the evidence phrase and the polarity for "
+        "every annotation, while the holder is the reviewer and the time is the "
+        "review date. Second, comparative opinions (\u201cbetter than\u201d) and "
+        "desiderative opinions (\u201cshould have\u201d) need special treatment; the "
+        "demonstration corpus therefore keeps such phrasing in the neutral "
+        "templates rather than forcing a polarity."
     ))
     subheading(doc, "2.3 Aspect-Based Sentiment Analysis")
     para(doc, (
@@ -629,6 +798,14 @@ def build_body(doc):
         "authenticity and return-policy trust, which motivates the domain-specific "
         "taxonomy in Chapter 3."
     ))
+    para(doc, (
+        "SemEval subtasks also inform the annotation scheme used here. Slot 1 "
+        "(aspect term extraction) corresponds to the keyword-based aspect "
+        "detector, and the polarity subtask corresponds to the evidence-phrase "
+        "classifier. The shared tasks score with macro-averaged precision, recall "
+        "and F1 for exactly the reason adopted in Section 3.6: class frequencies "
+        "are uneven and the minority class is often the most interesting."
+    ))
     subheading(doc, "2.4 Classical Machine Learning and BERT")
     para(doc, (
         "Classical opinion mining relies on bag-of-words or TF-IDF features with "
@@ -638,6 +815,15 @@ def build_body(doc):
         "for this domain is whether fine-tuning a transformer beats well-tuned "
         "TF-IDF baselines when the corpus is modest and the labels include a "
         "hard neutral class."
+    ))
+    para(doc, (
+        "Two practical considerations shape the model selection in Chapter 3. "
+        "Attention-based models scale quadratically with sequence length and need "
+        "GPU resources for competitive fine-tuning budgets; on CPU-only hardware "
+        "a distilled architecture (DistilBERT) keeps the comparison feasible "
+        "while remaining in the BERT family. Conversely, TF-IDF + linear models "
+        "train in seconds and are fully inspectable, which makes them a strong "
+        "and honest baseline rather than a straw man."
     ))
     subheading(doc, "2.5 Research Gap")
     add_table(
@@ -651,6 +837,23 @@ def build_body(doc):
             ["Evaluation", "Mostly accuracy", "Macro P/R/F1 plus per-class recall"],
         ],
         widths=[1.5, 2.6, 2.7],
+    )
+    para(doc, "")
+    caption(doc, f"Table 2.1: Literature summary (page {pg('tab:2.1')})")
+    add_table(
+        doc,
+        ["Ref", "Source", "Core contribution", "Used in this project"],
+        [
+            ["[1]", "Chevalier and Mayzlin (2006)", "Online reviews causally affect sales; negative reviews move demand more", "Motivation (Sections 1.1, 2.1)"],
+            ["[2]", "Liu (2012)", "Formal framework for sentiment analysis and opinion mining", "Opinion-tuple annotation scheme (Section 3.3)"],
+            ["[3]", "Pang and Lee (2008)", "Survey of opinion mining; document-level polarity classification", "Baseline framing and TF-IDF practice (Section 2.4)"],
+            ["[4]", "Hu and Liu (2004)", "Feature-based opinion mining; opinions attach to features", "Direct precursor of aspect-level design (Section 2.2)"],
+            ["[5]", "Pontiki et al. (2014)", "SemEval-2014 Task 4: ABSA shared task", "Task definition and macro-metric convention (Section 3.6)"],
+            ["[6]", "Pontiki et al. (2016)", "SemEval-2016 Task 5: ABSA across domains", "Evidence that taxonomies are domain-specific (Section 2.3)"],
+            ["[7]", "Vaswani et al. (2017)", "Attention mechanism / Transformer architecture", "Background for BERT-family models (Section 3.5)"],
+            ["[8]", "Devlin et al. (2019)", "BERT pre-training and fine-tuning", "Fine-tuned DistilBERT configuration (Section 3.5)"],
+        ],
+        widths=[0.5, 1.9, 2.6, 1.8],
     )
     para(doc, "")
     para(doc, (
@@ -667,13 +870,23 @@ def build_body(doc):
         "Before any data work, each target marketplace was checked for publicly "
         "accessible, structured product reviews using ordinary unauthenticated "
         "requests only (no bypass of CAPTCHAs, authentication or rate limits). "
-        "Cashify and Budli expose testimonials but no structured per-product "
-        "review API; the Amazon Renewed India storefront was not reachable "
-        "(HTTP 404); OLX returned HTTP 403 and is peer-to-peer without structured "
-        "reviews; Flipkart was reachable but exposes no scrape-permitted review "
-        "corpus. Hugging Face hosts no refurbished-electronics ABSA dataset for "
-        "Indian marketplaces."
+        "Table 3.1 records the outcome for every source that was checked."
     ))
+    caption(doc, f"Table 3.1: Platform verification outcomes (page {pg('tab:3.1')})")
+    add_table(
+        doc,
+        ["Source", "Method", "Outcome"],
+        [
+            ["Cashify", "Unauthenticated site inspection", "Testimonials only; no structured per-product reviews"],
+            ["Amazon Renewed (India)", "Unauthenticated storefront request", "Storefront not reachable (HTTP 404)"],
+            ["Flipkart Refurbished", "Unauthenticated site inspection", "Reachable; no scrape-permitted review corpus"],
+            ["OLX", "Unauthenticated request", "HTTP 403; peer-to-peer listings without structured reviews"],
+            ["Budli", "Unauthenticated site inspection", "Testimonials only; no structured per-product reviews"],
+            ["Hugging Face datasets", "Keyword search", "No refurbished-electronics ABSA dataset for Indian marketplaces"],
+        ],
+        widths=[1.7, 1.9, 3.2],
+    )
+    para(doc, "")
     para(doc, (
         "Because fabricating data or presenting synthetic examples as real "
         "observations is prohibited, the data strategy is: (i) a clearly labelled "
@@ -693,10 +906,10 @@ def build_body(doc):
         "profiles, and two realism mechanisms prevent trivially separable data: "
         "10% of labels are flipped to an adjacent class (simulated annotator "
         "disagreement) and 30% of reviews use lexically ambiguous templates that "
-        "overlap across classes. Table 3.1 gives the dataset profile; Figure 3.1 "
+        "overlap across classes. Table 3.2 gives the dataset profile; Figure 3.1 "
         "shows the per-platform counts."
     ))
-    caption(doc, f"Table 3.1: Dataset profile of the demonstration corpus (page {pg('tab:3.1')})")
+    caption(doc, f"Table 3.2: Dataset profile of the demonstration corpus (page {pg('tab:3.2')})")
     t1 = pd.read_csv(TABLES / "table1_dataset_profile.csv")
     add_table(
         doc,
@@ -707,6 +920,15 @@ def build_body(doc):
     para(doc, "")
     add_figure(doc, FIGDIR / "fig_reviews_platform.png", "3.1",
                "Reviews per marketplace in the demonstration corpus")
+    para(doc, (
+        "The profile is deliberately uneven: OLX and Budli carry fewer reviews "
+        "than the managed marketplaces, mirroring the lower review density a "
+        "researcher would encounter on peer-to-peer channels. Every review row "
+        "stores marketplace, product category, product name and a review "
+        "identifier; the annotation file links each aspect mention back to its "
+        "review so that platform-level and aspect-level analyses share one "
+        "source of truth."
+    ))
     subheading(doc, "3.3 Aspect Taxonomy and Annotation")
     para(doc, (
         "Nine aspects cover the refurbished purchase journey: product condition, "
@@ -715,16 +937,32 @@ def build_body(doc):
         "and refunds, and trust and authenticity. Aspect detection is "
         "keyword-based (a deliberate V0.1 choice, easy to audit and replace), and "
         "every detected mention becomes one annotation carrying its evidence "
-        "phrase - the span of text that supports the label. Table 3.2 lists "
+        "phrase - the span of text that supports the label. Table 3.3 lists "
         "mention frequencies; Figure 3.2 shows the label distribution over all "
         "3,548 annotations (positive 47.7%, negative 31.6%, neutral 20.8%)."
     ))
-    caption(doc, f"Table 3.2: Aspect mention frequency (page {pg('tab:3.2')})")
+    caption(doc, f"Table 3.3: Aspect mention frequency (page {pg('tab:3.3')})")
     t2 = pd.read_csv(TABLES / "table2_aspect_frequency.csv")
     add_table(doc, list(t2.columns), t2.values.tolist(), widths=[2.9, 1.6, 2.3])
     para(doc, "")
     add_figure(doc, FIGDIR / "fig_label_dist.png", "3.2",
                "Sentiment label distribution over 3,548 annotations")
+    para(doc, (
+        "Each annotation record stores the review id, the detected aspect, the "
+        "evidence phrase, the polarity label, an annotation status flag and the "
+        "generator version. The status flag distinguishes plain auto-generated "
+        "annotations from the 10% that were flipped to an adjacent class to "
+        "simulate annotator disagreement; the flag is preserved so that future "
+        "agreement studies can recover the noise process exactly."
+    ))
+    status_counts = ann_all.annotation_status.value_counts()
+    status_txt = "; ".join(f"{int(v)} annotations are flagged \u201c{k}\u201d"
+                           for k, v in status_counts.items())
+    para(doc, (
+        f"In the current corpus the flag takes two values: {status_txt}. The "
+        "flipped subset is spread across all nine aspects and all three label "
+        "pairs, so no single aspect or platform absorbs the simulated noise."
+    ))
     subheading(doc, "3.4 Pre-processing and Partitioning")
     para(doc, (
         "Cleaning lowercases text and normalises punctuation while deliberately "
@@ -733,10 +971,39 @@ def build_body(doc):
         "the review level, not the annotation level, so that two annotations from "
         "the same review can never fall on opposite sides of the split - the "
         "standard defence against leakage in multi-mention reviews. The split is "
-        "stratified 70/15/15 with seed 42, producing 2,475 training, 536 "
-        "validation and 537 test annotations; the validation partition is used "
-        "only for model selection, and every model is evaluated exactly once on "
-        "the same held-out test partition."
+        "stratified 70/15/15 with seed 42; the validation partition is used only "
+        "for model selection, and every model is evaluated exactly once on the "
+        "same held-out test partition. Table 3.5 gives the resulting partition "
+        "sizes."
+    ))
+    caption(doc, f"Table 3.5: Partition sizes by class (page {pg('tab:3.5')})")
+    merged_split = split.merge(ann_all[["annotation_id", "sentiment"]],
+                               on="annotation_id")
+    split_rows = []
+    for part in ("train", "validation", "test"):
+        sub = merged_split[merged_split.partition == part]
+        counts = sub.sentiment.value_counts()
+        split_rows.append([
+            part.capitalize(),
+            int(counts.get("positive", 0)), int(counts.get("neutral", 0)),
+            int(counts.get("negative", 0)), len(sub),
+            int(sub.review_id.nunique()),
+        ])
+    totals = ["Total"] + [sum(r[i] for r in split_rows) for i in range(1, 6)]
+    split_rows.append(totals)
+    add_table(
+        doc,
+        ["Partition", "Positive", "Neutral", "Negative", "Annotations", "Reviews"],
+        split_rows,
+        widths=[1.4, 1.0, 1.0, 1.0, 1.2, 1.1],
+    )
+    para(doc, "")
+    para(doc, (
+        "Review-level counts (last column) matter because leakage is defined at "
+        "the review level: a model that memorised review stylistics would score "
+        "annotations from held-in reviews on either side of an annotation-level "
+        "split. The persisted split_assignment.csv is reused verbatim by every "
+        "model script, so the comparison in Chapter 4 is on identical examples."
     ))
     subheading(doc, "3.5 Models and Hyperparameters")
     para(doc, (
@@ -751,9 +1018,9 @@ def build_body(doc):
         "rate 2e-5, weight decay 0.01, one epoch on CPU, best epoch selected on "
         "validation). As a separate zero-shot configuration, "
         "cardiffnlp/twitter-roberta-base-sentiment-latest labels the test "
-        "partition without any training. Table 3.3 summarises the configurations."
+        "partition without any training. Table 3.4 summarises the configurations."
     ))
-    caption(doc, f"Table 3.3: Model configurations (page {pg('tab:3.3')})")
+    caption(doc, f"Table 3.4: Model configurations (page {pg('tab:3.4')})")
     add_table(
         doc,
         ["Model", "Features", "Key hyperparameters", "Imbalance handling"],
@@ -767,6 +1034,15 @@ def build_body(doc):
         widths=[1.9, 1.7, 2.1, 1.6],
     )
     para(doc, "")
+    para(doc, (
+        "Two design decisions deserve emphasis. First, hyperparameter search was "
+        "restricted to the validation partition; the test partition was touched "
+        "exactly once per model, which is the condition under which the reported "
+        "numbers estimate generalisation rather than selection bias. Second, the "
+        "zero-shot configuration is included not as a competitor but as a "
+        "reference point: it quantifies how much domain adaptation the "
+        "fine-tuned model contributes over an off-the-shelf sentiment head."
+    ))
     subheading(doc, "3.6 Evaluation Protocol")
     para(doc, (
         "Metrics are accuracy, macro precision, macro recall and macro F1, plus "
@@ -776,21 +1052,57 @@ def build_body(doc):
         "is verified by an automated validation report asserting that the "
         "prediction file covers every test annotation and nothing outside it."
     ))
+    para(doc, (
+        "The protocol also fixes the unit of analysis: one row per aspect "
+        "annotation (evidence phrase), not per review. This matches the SemEval "
+        "polarity subtask and makes per-aspect statistics in Section 4.4 "
+        "well-defined. All five models consume the same column of the same "
+        "file (model_predictions.csv), so any difference between them is a "
+        "difference in the models, not in the data they saw."
+    ))
+    subheading(doc, "3.7 Evaluation Metrics")
+    para(doc, (
+        "For a class c, let TP, FP and FN denote true positives, false positives "
+        "and false negatives on the test partition. The per-class metrics are:"
+    ))
+    para(doc, "Precision(c) = TP / (TP + FP)", align=WD_ALIGN_PARAGRAPH.CENTER, italic=True)
+    para(doc, "Recall(c) = TP / (TP + FN)", align=WD_ALIGN_PARAGRAPH.CENTER, italic=True)
+    para(doc, "F1(c) = 2 \u00b7 Precision(c) \u00b7 Recall(c) / (Precision(c) + Recall(c))",
+         align=WD_ALIGN_PARAGRAPH.CENTER, italic=True)
+    para(doc, (
+        "Macro averaging computes each metric per class and then takes the "
+        "unweighted mean over the three classes, so the minority neutral class "
+        "counts as much as the majority positive class. Accuracy is the share of "
+        "all test annotations predicted correctly. Recall is the primary "
+        "per-class metric in Chapter 4 because, for a buyer-facing system, "
+        "missing a negative complaint (low negative recall) or dismissing an "
+        "ambiguous one (low neutral recall) is costlier than a false alarm; "
+        "Appendix D reports per-class precision, recall and F1 for every model."
+    ))
 
     # ================= 4. RESULTS =================
     heading(doc, "4. Results and Discussion")
     para(doc, (
-        "All numbers in this chapter are computed by build_tables.py from the "
-        "labelled corpus and the saved model outputs; none is hand-entered. They "
-        "characterise the pipeline on the synthetic demonstration corpus and, in "
-        "Section 4.6, on real Amazon reviews."
+        "All numbers in this chapter are computed by build_tables.py and by the "
+        "analysis scripts from the labelled corpus and the saved model outputs; "
+        "none is hand-entered. They characterise the pipeline on the synthetic "
+        "demonstration corpus and, in Sections 4.6 and 4.9, on real Amazon "
+        "reviews."
     ))
     subheading(doc, "4.1 Dataset Profile")
     para(doc, (
-        "Table 3.1 and Figure 3.1 summarise the corpus: 2,000 reviews (Cashify "
+        "Table 3.2 and Figure 3.1 summarise the corpus: 2,000 reviews (Cashify "
         "492, Amazon Renewed 485, Flipkart Refurbished 379, OLX 361, Budli 283) "
         "yield 3,548 aspect annotations. Smartphones contribute 989 reviews, "
         "laptops 595 and cameras 416."
+    ))
+    para(doc, (
+        "On average each review yields 1.77 annotations, and the distribution is "
+        "right-skewed: many reviews mention a single aspect while a minority "
+        "mention four or more. This multi-mention structure is exactly why the "
+        "partition in Section 3.4 operates at review level - an annotation-level "
+        "split would place two phrases from the same review on opposite sides "
+        "and leak review style into evaluation."
     ))
     subheading(doc, "4.2 Model Comparison")
     caption(doc, f"Table 4.1: Model performance on the held-out test partition (page {pg('tab:4.1')})")
@@ -809,6 +1121,16 @@ def build_body(doc):
         "differ, but the direction is not the commonly assumed one: the "
         "well-tuned linear baseline beats the transformer, and no model is "
         "claimed better than the data show."
+    ))
+    para(doc, (
+        "The gap between the fine-tuned and zero-shot BERT configurations "
+        "(89.57% versus 70.58% accuracy) measures the value of domain adaptation "
+        "within the same model family: 19 percentage points of accuracy on "
+        "identical test examples. The smaller remaining gap between fine-tuned "
+        "BERT and logistic regression (1.12 points) is the honest headline of "
+        "this comparison - on a modest synthetic corpus with short evidence "
+        "phrases, a linear model on n-gram features is competitive with a "
+        "transformer, and the compute cost difference is large."
     ))
     subheading(doc, "4.3 Class-Level Analysis")
     caption(doc, f"Table 4.2: Class-specific recall on the test partition (page {pg('tab:4.2')})")
@@ -841,6 +1163,13 @@ def build_body(doc):
         "mentions. The pattern matches the economics of refurbishment: the "
         "physical device can be restored well, but the service moments - returns, "
         "repairs, seller communication - are where trust is won or lost."
+    ))
+    para(doc, (
+        "Appendix C gives the full aspect-by-platform mention counts behind this "
+        "table. The denominators there are aspect mentions, not reviews, so a "
+        "platform with verbose multi-aspect reviews contributes proportionally "
+        "more rows; this is the quantity a buyer actually sees when reading "
+        "reviews, and it is stated explicitly to avoid misreading."
     ))
     subheading(doc, "4.5 Cross-Platform Analysis")
     caption(doc, f"Table 4.4: Cross-platform aspect summary (page {pg('tab:4.4')})")
@@ -898,6 +1227,226 @@ def build_body(doc):
         "these are general Amazon reviews, not refurbished-electronics reviews "
         "from the five Indian platforms."
     ))
+    subheading(doc, "4.7 Confusion Matrix Analysis")
+    para(doc, (
+        "Tables 4.6-4.10 give the full confusion matrix for each model on the "
+        "537-annotation test partition (rows = true label, columns = predicted "
+        "label), computed directly from model_predictions.csv. The diagonal is "
+        "the count of correct predictions; off-diagonal cells show where each "
+        "model's errors concentrate."
+    ))
+    cm_keys = ["4.6", "4.7", "4.8", "4.9", "4.10"]
+    for (col, name), key in zip(PRED_COLS, cm_keys):
+        caption(doc, f"Table {key}: Confusion matrix - {name} (page {pg('tab:' + key)})")
+        add_table(
+            doc,
+            ["True \\ Predicted", "Positive", "Neutral", "Negative", "Row total"],
+            cm_rows(preds, col),
+            widths=[1.5, 1.2, 1.2, 1.2, 1.1],
+        )
+        para(doc, "")
+    para(doc, (
+        "Reading the matrices: logistic regression and the fine-tuned DistilBERT "
+        "model are both near-ceiling on the positive and negative rows and lose "
+        "almost all of their errors to the neutral column/row boundary. Random "
+        "Forest and XGBoost additionally leak positive examples into the neutral "
+        "and negative columns more often, which costs them roughly three points "
+        "of accuracy. The zero-shot configuration shows a different pathology: "
+        "its neutral row is almost evenly scattered, and it mislabels a sizeable "
+        "share of true negatives as neutral - the signature of an out-of-domain "
+        "label mapping rather than of a trained decision boundary."
+    ))
+    subheading(doc, "4.8 Error Analysis")
+    para(doc, (
+        "To make the neutral-class difficulty concrete, Table 4.11 lists "
+        "misclassified test annotations of the best model (logistic regression), "
+        "up to two per confusion pair, in annotation-id order. Every row is a "
+        "verbatim record from the evaluation output."
+    ))
+    wrong = preds[preds.gold_label != preds.pred_logreg].sort_values("annotation_id")
+    err_rows = []
+    for (gold, predn), grp in wrong.groupby(["gold_label", "pred_logreg"]):
+        for r in grp.head(2).itertuples():
+            phrase = r.evidence_phrase
+            if len(phrase) > 68:
+                phrase = phrase[:68] + "\u2026"
+            err_rows.append([r.annotation_id, r.aspect, gold, predn, phrase])
+    err_rows = err_rows[:12]
+    pair_counts = wrong.groupby(["gold_label", "pred_logreg"]).size().sort_values(ascending=False)
+    caption(doc, f"Table 4.11: Misclassified examples - Logistic Regression (page {pg('tab:4.11')})")
+    add_table(
+        doc,
+        ["Annotation", "Aspect", "True", "Predicted", "Evidence phrase"],
+        err_rows,
+        widths=[1.0, 1.5, 0.85, 0.95, 2.55],
+    )
+    para(doc, "")
+    top_pairs = ", ".join(
+        f"{g} predicted as {p} ({int(c)} cases)"
+        for (g, p), c in pair_counts.head(3).items()
+    )
+    para(doc, (
+        f"The dominant error flows are: {top_pairs}. Two patterns recur in the "
+        "evidence phrases. First, mildly worded positives (\u201cacceptable\u201d, "
+        "\u201cdecent\u201d, \u201cworks as described\u201d) sit on the positive/neutral "
+        "boundary by construction - the corpus injected exactly this ambiguity. "
+        "Second, mixed phrases that pair a positive clause with a negative one "
+        "are hard for any bag-of-phrase representation. Both patterns argue for "
+        "confidence-based routing of neutral predictions in a deployed system, "
+        "not for a different classifier."
+    ))
+    subheading(doc, "4.9 Agreement by Aspect on Real Reviews")
+    para(doc, (
+        "The real-review validation can also be sliced by detected aspect: does "
+        "the pipeline agree with human star ratings equally well on delivery "
+        "phrases as on price phrases? Table 4.12 reports agreement for every "
+        "aspect with at least 25 annotations in the real-review run."
+    ))
+    real_g = real.groupby("aspect").apply(
+        lambda d: (d.predicted_sentiment == d.human_sentiment).mean(),
+        include_groups=False,
+    )
+    real_n = real.groupby("aspect").size()
+    keep = real_n[real_n >= 25].index
+    real_rows = [
+        [a, int(real_n[a]), round(float(real_g[a]), 3)]
+        for a in sorted(keep, key=lambda x: -int(real_n[x]))
+    ]
+    caption(doc, f"Table 4.12: Real-review agreement by detected aspect (page {pg('tab:4.12')})")
+    add_table(doc, ["Aspect", "Annotations", "Agreement"], real_rows,
+              widths=[2.6, 1.4, 1.4])
+    para(doc, "")
+    para(doc, (
+        "Agreement varies by aspect, and the variation is interpretable: aspects "
+        "whose keyword triggers tend to appear in emotionally explicit phrases "
+        "track star ratings more closely, while aspects often mentioned in "
+        "passing (\u201cGeneral\u201d captures reviews with no specific aspect "
+        "trigger) inherit the review-level ambiguity. Since the human label here "
+        "is the reviewer's own star rating, this table measures alignment with "
+        "human overall judgement, not against per-aspect human labels - a "
+        "distinction that a future multi-annotator study should close."
+    ))
+    subheading(doc, "4.10 Hypothesis Outcomes")
+    para(doc, (
+        "Table 4.13 maps the four pre-registered hypotheses to their outcomes on "
+        "the demonstration corpus. \u201cSupported\u201d always means \u201csupported on "
+        "the synthetic demonstration corpus\u201d; transfer to real marketplace "
+        "reviews is future work, not a claim made here."
+    ))
+    caption(doc, f"Table 4.13: Hypothesis outcomes (page {pg('tab:4.13')})")
+    add_table(
+        doc,
+        ["ID", "Hypothesis", "Outcome on the demonstration corpus"],
+        [
+            ["H1", "Sentiment differs across the nine aspects",
+             "Supported: positive/negative shares differ visibly across aspects (Table 4.3, Figure 4.3)"],
+            ["H2", "Aspect sentiment distributions differ across platforms",
+             "Supported: platform profiles differ in Table 4.4 and Figure 4.4"],
+            ["H3", "Trust and condition concerns differ across platforms",
+             "Directionally supported: trust/condition scores differ across platforms in the corpus; requires verified real reviews to generalise"],
+            ["H4", "BERT and traditional models differ in performance",
+             "Supported, with an unexpected direction: logistic regression (90.69%) beats fine-tuned DistilBERT (89.57%); zero-shot trails both"],
+        ],
+        widths=[0.6, 2.7, 3.5],
+    )
+    para(doc, "")
+    para(doc, (
+        "The honest reading of H4 is methodological rather than tribal: with a "
+        "modest training budget (one epoch, CPU) and short evidence phrases, "
+        "n-gram features carry most of the signal. The transformer configuration "
+        "remains the natural next step once GPU fine-tuning over multiple epochs "
+        "is affordable, and the protocol in Chapter 3 makes that re-run a "
+        "one-script change."
+    ))
+    subheading(doc, "4.11 Error Flows on Real Reviews")
+    para(doc, (
+        "Agreement in Table 4.5 is a single number; the confusion matrix in "
+        "Table 4.14 shows where the disagreements concentrate. Rows are the "
+        "human label derived from the reviewer's own star rating (4-5 stars = "
+        "positive, 3 = neutral, 1-2 = negative); columns are the pipeline's "
+        "prediction, computed from real_aspect_annotations.csv."
+    ))
+    caption(doc, f"Table 4.14: Predicted vs human sentiment on real Amazon reviews (page {pg('tab:4.14')})")
+    real_cm = confusion_matrix(real.human_sentiment, real.predicted_sentiment,
+                               labels=LABELS)
+    cm_r = []
+    for lab, counts in zip(["Positive", "Neutral", "Negative"], real_cm):
+        cm_r.append([f"{lab} (human)", int(counts[0]), int(counts[1]),
+                     int(counts[2]), int(counts.sum())])
+    add_table(
+        doc,
+        ["Human \\ Predicted", "Positive", "Neutral", "Negative", "Row total"],
+        cm_r,
+        widths=[1.5, 1.2, 1.2, 1.2, 1.1],
+    )
+    para(doc, "")
+    add_figure(doc, FIGDIR / "fig_real_confusion.png", "4.6",
+               "Predicted-vs-human confusion matrix on real Amazon reviews")
+    para(doc, (
+        "Two flows dominate. First, 3-star reviews are pulled in both "
+        "directions: 180 of the 481 three-star annotations are predicted "
+        "negative and 93 positive - the textual signal of an ambivalent "
+        "reviewer genuinely points both ways, which is why the neutral row has "
+        "the lowest recall (208 of 481, i.e. 0.43). Second, the extreme "
+        "classes leak very little across the polarity axis: only 36 of 945 "
+        "positive and 37 of 1,034 negative annotations are predicted as the "
+        "opposite pole. The larger errors at the extremes are neutral "
+        "predictions (129 positives, 125 negatives) - under-confident rather "
+        "than wrong-polarity errors."
+    ))
+    para(doc, (
+        "For a deployed buyer-facing system this is the favourable failure "
+        "mode: a neutral flag invites a human second look, while a flipped "
+        "polarity would actively mislead it. The real-review matrix therefore "
+        "reproduces, on human-authored text, the same qualitative pattern the "
+        "synthetic corpus was built to exhibit: extreme polarities are easy, "
+        "and the neutral boundary is where all of the residual difficulty "
+        "lives."
+    ))
+    subheading(doc, "4.12 Aspect-Wise Label Distribution")
+    para(doc, (
+        "Hypothesis H1 predicts that sentiment differs across aspects; Table "
+        "4.15 makes the comparison explicit by giving the full label "
+        "distribution of every aspect in the demonstration corpus, computed "
+        "from aspect_annotations.csv."
+    ))
+    caption(doc, f"Table 4.15: Aspect-wise label distribution (page {pg('tab:4.15')})")
+    asp_lab = ann_all.groupby(["aspect", "sentiment"]).size().unstack(fill_value=0)
+    for lab in LABELS:
+        if lab not in asp_lab.columns:
+            asp_lab[lab] = 0
+    asp_lab = asp_lab[LABELS]
+    asp_lab["total"] = asp_lab.sum(axis=1)
+    asp_lab = asp_lab.sort_values("total", ascending=False)
+    al_rows = []
+    for asp, r in asp_lab.iterrows():
+        al_rows.append([asp, int(r.positive), int(r.neutral), int(r.negative),
+                        int(r.total), f"{100 * r.positive / r.total:.1f}%"])
+    add_table(
+        doc,
+        ["Aspect", "Positive", "Neutral", "Negative", "Total", "Positive share"],
+        al_rows,
+        widths=[2.0, 0.95, 0.9, 0.95, 0.85, 1.15],
+    )
+    para(doc, "")
+    pos_shares = {asp: r.positive / r.total for asp, r in asp_lab.iterrows()}
+    hi = max(pos_shares, key=pos_shares.get)
+    lo = min(pos_shares, key=pos_shares.get)
+    para(doc, (
+        f"The positive share ranges from {100 * pos_shares[lo]:.1f}% ({lo}) to "
+        f"{100 * pos_shares[hi]:.1f}% ({hi}). This spread is the direct "
+        "evidence behind H1's \u201csupported\u201d verdict in Table 4.13: "
+        "sentiment is not uniform across the nine aspects of the refurbished "
+        "purchase journey."
+    ))
+    para(doc, (
+        "Two caveats apply. First, these counts are over annotations, not "
+        "reviews; a review mentioning three aspects contributes to three rows "
+        "(Appendix E gives the annotations-per-review distribution). Second, "
+        "each annotation label was generated with its aspect in mind, so the "
+        "cross-aspect differences partly reflect the generator's design; "
+        "confirming the pattern on human-labelled data remains future work."
+    ))
 
     # ================= 5. OUTCOME =================
     heading(doc, "5. Outcome and Deliverables")
@@ -912,12 +1461,74 @@ def build_body(doc):
         "interactively (overview, upload, analyser, dashboard, platform "
         "comparison, recommendation and methodology tabs)."
     ))
-    subheading(doc, "5.2 Deliverables")
+    subheading(doc, "5.2 System Design and Implementation")
+    para(doc, (
+        "The implemented system has four layers, shown in Figure 5.1: a "
+        "Streamlit user interface with eight tabs; an analysis engine that "
+        "performs aspect extraction, sentiment classification and platform "
+        "scoring; a model layer with the zero-shot RoBERTa pipeline, the "
+        "fine-tuned DistilBERT checkpoint and the TF-IDF baselines; and a data "
+        "and tooling layer holding the demonstration corpus, the MARC-based "
+        "validation data and the analysis notebooks."
+    ))
+    add_figure(doc, DIAGRAMS / "1_diagram_tech_stack.png", "5.1",
+               "Technology stack of the RefurbIQ system", width=6.2)
+    para(doc, (
+        "Figure 5.2 shows the end-to-end workflow. Uploaded or bundled reviews "
+        "pass through pre-processing and keyword aspect extraction into the "
+        "sentiment model; the resulting review-by-aspect table feeds two "
+        "branches - an analytics dashboard (sentiment by aspect, platform and "
+        "category) and a recommendation engine that computes six weighted "
+        "sub-scores per platform and gates the output with HIGH/MEDIUM/LOW "
+        "confidence levels (HIGH requires at least 50 reviews with consistent "
+        "sentiment; platforms below 20 reviews are not ranked)."
+    ))
+    add_figure(doc, DIAGRAMS / "2_diagram_app_workflow.png", "5.2",
+               "End-to-end workflow of the RefurbIQ application", width=6.2)
+    para(doc, (
+        "The recommendation layer is deliberately transparent: every sub-score is "
+        "a 0-10 share computed from the aspect-group sentiment distribution, "
+        "the weights are user-visible defaults, and the confidence gate refuses "
+        "to recommend when evidence is thin. This mirrors the research stance "
+        "of the project - an expected outcome is never reported as a finding."
+    ))
+    para(doc, (
+        "The scoring weights and evidence gates of the recommendation engine "
+        "are fixed, user-visible constants (src/recommendation.py); Table 5.1 "
+        "reproduces them so that every recommendation the app emits can be "
+        "recomputed by hand."
+    ))
+    caption(doc, f"Table 5.1: Recommendation engine scoring weights (page {pg('tab:5.1')})")
+    add_table(
+        doc,
+        ["Factor", "Aspect group", "Default weight"],
+        [
+            ["Overall sentiment", "all detected aspects", "0.25"],
+            ["Product quality", "Condition, Battery, Performance, Display, Camera", "0.25"],
+            ["Service", "Seller Service, Delivery, Packaging", "0.15"],
+            ["Value", "Price/Value", "0.15"],
+            ["Trust", "Trust/Authenticity, Repair/Refurbishment", "0.10"],
+            ["Return/Refund", "Return/Refund", "0.10"],
+        ],
+        widths=[1.7, 3.3, 1.2],
+    )
+    para(doc, "")
+    para(doc, (
+        "Each sub-score is the (positive + 0.5 \u00d7 neutral) share over the "
+        "factor's aspect group, scaled to 0-10; the overall score is the "
+        "weighted sum. Platforms with fewer than 20 unique reviews are excluded "
+        "from ranking and shown as insufficient data; confidence is HIGH with "
+        "at least 50 reviews and consistent sentiment, MEDIUM above the "
+        "threshold, and LOW below it - in which case no recommendation is "
+        "emitted."
+    ))
+    subheading(doc, "5.3 Deliverables")
     bullets(doc, [
         "Labelled demonstration dataset: 2,000 reviews and 3,548 aspect annotations (data_origin = synthetic-demo-v1), plus 2,000 real-review validation annotations.",
         "Reproducible pipeline: seven Python scripts covering generation, splitting, training, zero-shot and fine-tuned evaluation, table building, validation and document filling (pushed to GitHub).",
         "Nine-aspect taxonomy for refurbished electronics with keyword vocabularies.",
-        "Four-model comparison on a common leak-free protocol, with macro and per-class metrics.",
+        "Five-model comparison on a common leak-free protocol, with macro and per-class metrics, confusion matrices and error examples.",
+        "Streamlit application with analytics and recommendation tabs.",
         "Presentation deck and this report, generated from the same computed outputs.",
     ])
 
@@ -930,7 +1541,8 @@ def build_body(doc):
         "logistic regression on TF-IDF features (90.69% accuracy, 0.8937 macro "
         "F1) edged out a fine-tuned DistilBERT model (89.57%, 0.8784), both ahead "
         "of random forest, XGBoost and zero-shot classification; the neutral "
-        "class was hardest for every model. On 2,000 real Amazon reviews the "
+        "class was hardest for every model, and the confusion and error analyses "
+        "in Sections 4.7-4.8 show precisely where. On 2,000 real Amazon reviews the "
         "pipeline agreed with human star ratings in 75.6% of annotations, with "
         "near-perfect agreement at the extremes. Platform verification showed "
         "that structured public reviews are currently unavailable for the five "
@@ -945,6 +1557,14 @@ def build_body(doc):
         "keyword aspect detection with a fine-tuned span extractor; (iv) add a "
         "multi-annotator study for agreement statistics; (v) integrate the "
         "recommendation layer with live price and warranty signals."
+    ))
+    para(doc, (
+        "The methodological lesson of the project is worth restating as a "
+        "conclusion: when the target data is inaccessible, the honest path is a "
+        "clearly labelled synthetic demonstration plus a separate validation on "
+        "real data with human ground truth - not silent substitution. Every "
+        "table in this report states which of the two it comes from, and every "
+        "number can be regenerated from the repository with a fixed seed."
     ))
 
     # ================= REFERENCES =================
@@ -972,38 +1592,226 @@ def build_body(doc):
     heading(doc, "Appendix A. Reproducibility")
     para(doc, (
         "Every number in this report can be regenerated with the scripts under "
-        "research/scripts/ (seed 42 throughout):"
+        "research/scripts/ (seed 42 throughout). Table A.1 lists each script "
+        "and the artefacts it writes."
     ))
-    bullets(doc, [
-        "generate_dataset.py - builds reviews.csv (2,000) and aspect_annotations.csv (3,548).",
-        "train_traditional_models.py - review-level stratified split, TF-IDF, LR/RF/XGBoost, writes split_assignment.csv, model_predictions.csv, traditional_metrics.json.",
-        "eval_bert_zeroshot.py - zero-shot evaluation on the same test partition.",
-        "finetune_bert.py - DistilBERT fine-tuning and test evaluation (CPU).",
-        "build_tables.py - computes all six results tables from data and metric JSONs.",
-        "validation_report.py - asserts predictions cover exactly the test partition.",
-        "update_docx.py / build_pptx.py / build_report.py - fill the paper, deck and this report from the computed tables.",
-    ])
+    caption(doc, f"Table A.1: Pipeline scripts and outputs (page {pg('tab:A.1')})")
+    add_table(
+        doc,
+        ["Script", "Output artefacts"],
+        [
+            ["generate_dataset.py", "reviews.csv (2,000 rows); aspect_annotations.csv (3,548 rows)"],
+            ["train_traditional_models.py", "split_assignment.csv; model_predictions.csv; traditional_metrics.json"],
+            ["eval_bert_zeroshot.py", "bert_zeroshot_metrics.json; pred_bert_zeroshot column"],
+            ["finetune_bert.py", "models/finetuned_distilbert/; bert_finetuned_metrics.json; pred_bert_finetuned column"],
+            ["run_real_reviews.py", "real/real_aspect_annotations.csv (2,460 rows); agreement summary"],
+            ["build_tables.py", "research/tables/table1..6.csv"],
+            ["validation_report.py", "asserts predictions cover exactly the test partition"],
+            ["build_report.py / build_pptx.py", "this report and the presentation deck"],
+        ],
+        widths=[2.5, 4.3],
+    )
+    para(doc, "")
     para(doc, (
-        "Environment: Python 3.14 virtual environment; scikit-learn, XGBoost, "
-        "PyTorch, transformers, pandas, matplotlib, python-docx, python-pptx. "
+        "Environment: Python 3.14 virtual environment; scikit-learn 1.9.1, "
+        "XGBoost 3.4.1, PyTorch 2.14.1 (CPU), transformers 5.18.0, pandas "
+        "3.0.6, matplotlib 3.11.1, python-docx 1.2.0, python-pptx 1.0.2. "
         "Training hardware: CPU only (documented in the metric JSONs). Code "
         "repository: https://github.com/Saket-code40/refurbiq."
     ))
+    para(doc, (
+        "The split file is the reproducibility anchor: because every model "
+        "script reads split_assignment.csv instead of re-splitting, a re-run "
+        "reproduces the same test examples and therefore the same confusion "
+        "matrices, per-class metrics and error tables in this report."
+    ))
     heading(doc, "Appendix B. Annotation Samples")
     para(doc, (
-        "Table B.1 shows verbatim rows from aspect_annotations.csv (synthetic "
-        "demonstration corpus). Each annotation stores the review id, the "
-        "detected aspect, the evidence phrase and the label."
+        "Table B.1 shows verbatim rows sampled (random_state 42) from "
+        "aspect_annotations.csv (synthetic demonstration corpus). Each "
+        "annotation stores the review id, the detected aspect, the evidence "
+        "phrase and the label."
     ))
     caption(doc, f"Table B.1: Sample annotations (page {pg('tab:B.1')})")
-    ann = pd.read_csv(DATA / "aspect_annotations.csv")
-    sample = ann.sample(6, random_state=42)
+    sample = ann_all.sample(18, random_state=42)
     add_table(
         doc,
         ["review_id", "aspect", "evidence phrase", "sentiment"],
-        [[r.review_id, r.aspect, (r.evidence_phrase[:70] + ("\u2026" if len(r.evidence_phrase) > 70 else "")), r.sentiment]
+        [[r.review_id, r.aspect,
+          (r.evidence_phrase[:66] + ("\u2026" if len(r.evidence_phrase) > 66 else "")),
+          r.sentiment]
          for r in sample.itertuples()],
-        widths=[0.9, 1.7, 3.3, 1.0],
+        widths=[0.9, 1.6, 3.3, 0.9],
+    )
+    para(doc, "")
+    para(doc, (
+        "Table B.2 walks through complete reviews: for each sampled review the "
+        "full text is quoted, followed by every annotation attached to it, so "
+        "the reader can verify that each label is supported by its evidence "
+        "phrase. Reviews with at least two annotations were sampled with "
+        "random_state 42."
+    ))
+    ann_by_review = ann_all.groupby("review_id")
+    multi = sorted(rid for rid, g in ann_by_review if len(g) >= 2)
+    sel = list(pd.Series(multi).sample(5, random_state=42).sort_values())
+    b2_rows = []
+    for rid in sel:
+        rev_row = rev_all[rev_all.review_id == rid].iloc[0]
+        para(doc, (f"{rid} ({rev_row.marketplace}, {rev_row.product_category}, "
+                   f"{rev_row.product_name}):"), italic=True, size=11, space_after=2)
+        para(doc, f"\u201c{rev_row.review_text}\u201d", italic=True, size=11,
+             space_after=4)
+        for r in ann_by_review.get_group(rid).itertuples():
+            phrase = r.evidence_phrase
+            if len(phrase) > 80:
+                phrase = phrase[:80] + "\u2026"
+            b2_rows.append([r.review_id, r.aspect, phrase, r.sentiment])
+    caption(doc, f"Table B.2: Full-review annotation walkthrough (page {pg('tab:B.2')})")
+    add_table(
+        doc,
+        ["review_id", "aspect", "evidence phrase", "sentiment"],
+        b2_rows,
+        widths=[0.9, 1.6, 3.3, 0.9],
+    )
+    para(doc, "")
+    heading(doc, "Appendix C. Aspect-Wise Counts by Platform")
+    para(doc, (
+        "Table C.1 gives the number of aspect mentions per platform and aspect "
+        "in the demonstration corpus - the denominators behind Tables 4.3 and "
+        "4.4, computed from aspect_annotations.csv joined with reviews.csv."
+    ))
+    caption(doc, f"Table C.1: Aspect mentions by platform (page {pg('tab:C.1')})")
+    merged_ann = ann_all.merge(rev_all[["review_id", "marketplace"]], on="review_id")
+    ct = pd.crosstab(merged_ann["aspect"], merged_ann["marketplace"])
+    platforms = [p for p in ["Amazon Renewed", "Budli", "Cashify",
+                             "Flipkart Refurbished", "OLX"] if p in ct.columns]
+    c_rows = []
+    for aspect in ASPECT_ORDER:
+        row = [aspect] + [int(ct.loc[aspect, p]) if aspect in ct.index else 0
+                          for p in platforms]
+        row.append(sum(row[1:]))
+        c_rows.append(row)
+    c_rows.append(["Total"] + [int(ct[p].sum()) for p in platforms] + [int(ct.values.sum())])
+    add_table(
+        doc,
+        ["Aspect"] + platforms + ["Total"],
+        c_rows,
+        widths=[1.9] + [0.92] * len(platforms) + [0.7],
+    )
+    para(doc, "")
+    heading(doc, "Appendix D. Per-Class Precision, Recall and F1")
+    para(doc, (
+        "Table D.1 reports per-class precision, recall and F1 for all five "
+        "models on the test partition, computed from model_predictions.csv. It "
+        "extends Table 4.2 (recall only) and supports the discussion in "
+        "Sections 4.3 and 4.7."
+    ))
+    caption(doc, f"Table D.1: Per-class metrics for all models (page {pg('tab:D.1')})")
+    d_rows = []
+    for col, name in PRED_COLS:
+        for lab, pr, re, f1, sup in per_class_prf(preds, col):
+            d_rows.append([name, lab, pr, re, f1, sup])
+    add_table(
+        doc,
+        ["Model", "Class", "Precision", "Recall", "F1", "Support"],
+        d_rows,
+        widths=[2.3, 0.95, 1.0, 0.95, 0.95, 0.85],
+    )
+    para(doc, "")
+    heading(doc, "Appendix E. Corpus Statistics")
+    para(doc, (
+        "Table E.1 summarises review length (in words) per marketplace, "
+        "computed from reviews.csv. Length matters because TF-IDF evidence "
+        "phrases and the 128-token transformer limit both interact with how "
+        "much text a review contributes."
+    ))
+    caption(doc, f"Table E.1: Review length statistics by platform (page {pg('tab:E.1')})")
+    words = rev_all.review_text.str.split().str.len()
+    len_df = pd.DataFrame({"marketplace": rev_all.marketplace, "words": words})
+    e_rows = []
+    for p in ["Amazon Renewed", "Budli", "Cashify", "Flipkart Refurbished", "OLX"]:
+        sub = len_df[len_df.marketplace == p].words
+        e_rows.append([p, len(sub), round(float(sub.mean()), 1),
+                       float(sub.median()), int(sub.min()), int(sub.max())])
+    e_rows.append(["All", len(len_df), round(float(words.mean()), 1),
+                   float(words.median()), int(words.min()), int(words.max())])
+    add_table(
+        doc,
+        ["Platform", "Reviews", "Mean words", "Median", "Min", "Max"],
+        e_rows,
+        widths=[1.8, 1.0, 1.1, 1.0, 0.9, 0.9],
+    )
+    para(doc, "")
+    para(doc, (
+        "Table E.2 gives the distribution of annotation counts per review, "
+        "computed from aspect_annotations.csv. Multi-mention reviews are the "
+        "reason the partition operates at review level (Section 3.4)."
+    ))
+    caption(doc, f"Table E.2: Annotations per review (page {pg('tab:E.2')})")
+    per_review = ann_all.groupby("review_id").size()
+    dist = per_review.value_counts().sort_index()
+    e2_rows = [
+        [f"{int(k)}", int(v), f"{100 * v / len(per_review):.1f}%"]
+        for k, v in dist.items()
+    ]
+    e2_rows.append(["Total reviews", len(per_review), "100%"])
+    add_table(doc, ["Annotations per review", "Number of reviews", "Share"],
+              e2_rows, widths=[2.0, 1.8, 1.4])
+    para(doc, "")
+    para(doc, (
+        "The average of 1.77 annotations per review and the right-skewed "
+        "distribution together mean that review-level statistics and "
+        "annotation-level statistics differ: platform review counts (Table 3.2) "
+        "and platform mention counts (Appendix C) are therefore always "
+        "reported with their explicit denominator."
+    ))
+    para(doc, (
+        "Table E.3 crosses annotations with their review's marketplace, giving "
+        "the label mix each platform contributes to the corpus."
+    ))
+    caption(doc, f"Table E.3: Annotation labels by platform (page {pg('tab:E.3')})")
+    plat_lab = (
+        ann_all.merge(rev_all[["review_id", "marketplace"]], on="review_id")
+        .groupby(["marketplace", "sentiment"]).size().unstack(fill_value=0)
+    )
+    for lab in LABELS:
+        if lab not in plat_lab.columns:
+            plat_lab[lab] = 0
+    plat_lab = plat_lab[LABELS]
+    e3_rows = []
+    for plat in ["Amazon Renewed", "Budli", "Cashify", "Flipkart Refurbished", "OLX"]:
+        r = plat_lab.loc[plat]
+        e3_rows.append([plat, int(r.positive), int(r.neutral), int(r.negative),
+                        int(r.sum())])
+    tot_r = plat_lab.sum()
+    e3_rows.append(["All", int(tot_r.positive), int(tot_r.neutral),
+                    int(tot_r.negative), int(tot_r.sum())])
+    add_table(
+        doc,
+        ["Platform", "Positive", "Neutral", "Negative", "Annotations"],
+        e3_rows,
+        widths=[2.0, 1.1, 1.0, 1.1, 1.4],
+    )
+    para(doc, "")
+    para(doc, (
+        "Table E.4 summarises the star ratings that accompany each review in "
+        "reviews.csv. Ratings are metadata of the synthetic corpus, not model "
+        "input; they are reported so the corpus can be audited."
+    ))
+    caption(doc, f"Table E.4: Star rating statistics by platform (page {pg('tab:E.4')})")
+    e4_rows = []
+    for p in ["Amazon Renewed", "Budli", "Cashify", "Flipkart Refurbished", "OLX"]:
+        sub = rev_all[rev_all.marketplace == p].rating
+        e4_rows.append([p, len(sub), round(float(sub.mean()), 2),
+                        float(sub.median()), int(sub.min()), int(sub.max())])
+    allr = rev_all.rating
+    e4_rows.append(["All", len(allr), round(float(allr.mean()), 2),
+                    float(allr.median()), int(allr.min()), int(allr.max())])
+    add_table(
+        doc,
+        ["Platform", "Reviews", "Mean rating", "Median", "Min", "Max"],
+        e4_rows,
+        widths=[1.8, 1.0, 1.1, 1.0, 0.9, 0.9],
     )
     para(doc, "")
     para(doc, (
@@ -1041,7 +1849,6 @@ def render_and_fill():
         i for i in range(toc_page + 1, len(pages))
         if first_line(pages[i]) == "1. Introduction"
     )
-    lists_end = toc_page  # list-of-figures page precedes the TOC page
 
     def find_page(needle, lo):
         for i in range(lo, len(pages)):
@@ -1050,7 +1857,6 @@ def render_and_fill():
         return None
 
     replacements = {}
-    # chapter/section pages for the TOC (search within body only)
     toc_needles = {
         "abs": "ABSTRACT", "lot": "LIST OF TABLES", "lof": "LIST OF FIGURES",
         "1": "1. Introduction", "1.1": "1.1 Background",
@@ -1065,14 +1871,20 @@ def render_and_fill():
         "3.1": "3.1 Platform Verification", "3.2": "3.2 Dataset Construction",
         "3.3": "3.3 Aspect Taxonomy", "3.4": "3.4 Pre-processing",
         "3.5": "3.5 Models and Hyperparameters", "3.6": "3.6 Evaluation Protocol",
+        "3.7": "3.7 Evaluation Metrics",
         "4": "4. Results and Discussion",
         "4.1": "4.1 Dataset Profile", "4.2": "4.2 Model Comparison",
         "4.3": "4.3 Class-Level", "4.4": "4.4 Aspect-Level",
         "4.5": "4.5 Cross-Platform", "4.6": "4.6 Validation on Real Reviews",
+        "4.7": "4.7 Confusion Matrix", "4.8": "4.8 Error Analysis",
+        "4.9": "4.9 Agreement by Aspect", "4.10": "4.10 Hypothesis Outcomes",
+        "4.11": "4.11 Error Flows",
+        "4.12": "4.12 Aspect-Wise Label Distribution",
         "5": "5. Outcome and Deliverables", "5.1": "5.1 Research Output",
-        "5.2": "5.2 Deliverables",
+        "5.2": "5.2 System Design", "5.3": "5.3 Deliverables",
         "6": "6. Conclusion and Future Scope",
         "refs": "References", "appa": "Appendix A", "appb": "Appendix B",
+        "appc": "Appendix C", "appd": "Appendix D", "appe": "Appendix E",
     }
     # front-matter entries live before the TOC page
     for key in ("abs", "lot", "lof"):
@@ -1085,12 +1897,18 @@ def render_and_fill():
         replacements[f"toc:{key}"] = str(pgno - (body_start - 1)) if pgno else "?"
         # rebase to chapter numbering: body_start page = page 1
     # table / figure caption pages (chapter-numbered)
-    for key in ("3.1", "3.2", "3.3", "4.1", "4.2", "4.3", "4.4", "4.5", "B.1"):
+    table_keys = ("2.1", "3.1", "3.2", "3.3", "3.4", "3.5",
+                  "4.1", "4.2", "4.3", "4.4", "4.5", "4.6", "4.7", "4.8",
+                  "4.9", "4.10", "4.11", "4.12", "4.13", "4.14", "4.15",
+                  "5.1", "A.1", "B.1", "B.2", "C.1", "D.1",
+                  "E.1", "E.2", "E.3", "E.4")
+    for key in table_keys:
         pgno = find_page(f"Table {key}:", body_start)
         if pgno:
             replacements[f"tab:{key}"] = str(pgno - (body_start - 1))
             replacements[f"list:tab{key}"] = str(pgno - (body_start - 1))
-    for key in ("3.1", "3.2", "4.1", "4.2", "4.3", "4.4", "4.5"):
+    for key in ("3.1", "3.2", "4.1", "4.2", "4.3", "4.4", "4.5", "4.6",
+                "5.1", "5.2"):
         pgno = find_page(f"Figure {key}:", body_start)
         if pgno:
             replacements[f"fig:{key}"] = str(pgno - (body_start - 1))
@@ -1138,15 +1956,37 @@ def main() -> None:
     fill_front_matter(doc)
 
     table_list = [
-        ("3.1", "Dataset profile of the demonstration corpus", "tab3.1"),
-        ("3.2", "Aspect mention frequency", "tab3.2"),
-        ("3.3", "Model configurations", "tab3.3"),
+        ("2.1", "Literature summary", "tab2.1"),
+        ("3.1", "Platform verification outcomes", "tab3.1"),
+        ("3.2", "Dataset profile of the demonstration corpus", "tab3.2"),
+        ("3.3", "Aspect mention frequency", "tab3.3"),
+        ("3.4", "Model configurations", "tab3.4"),
+        ("3.5", "Partition sizes by class", "tab3.5"),
         ("4.1", "Model performance on the held-out test partition", "tab4.1"),
         ("4.2", "Class-specific recall on the test partition", "tab4.2"),
         ("4.3", "Sentiment distribution within each aspect", "tab4.3"),
         ("4.4", "Cross-platform aspect summary", "tab4.4"),
         ("4.5", "Agreement with reviewer star ratings (real reviews)", "tab4.5"),
+        ("4.6", "Confusion matrix - Logistic Regression", "tab4.6"),
+        ("4.7", "Confusion matrix - Random Forest", "tab4.7"),
+        ("4.8", "Confusion matrix - XGBoost", "tab4.8"),
+        ("4.9", "Confusion matrix - BERT (zero-shot)", "tab4.9"),
+        ("4.10", "Confusion matrix - BERT (fine-tuned DistilBERT)", "tab4.10"),
+        ("4.11", "Misclassified examples - Logistic Regression", "tab4.11"),
+        ("4.12", "Real-review agreement by detected aspect", "tab4.12"),
+        ("4.13", "Hypothesis outcomes", "tab4.13"),
+        ("4.14", "Predicted vs human sentiment on real Amazon reviews", "tab4.14"),
+        ("4.15", "Aspect-wise label distribution", "tab4.15"),
+        ("5.1", "Recommendation engine scoring weights", "tab5.1"),
+        ("A.1", "Pipeline scripts and outputs", "tabA.1"),
         ("B.1", "Sample annotations", "tabB.1"),
+        ("B.2", "Full-review annotation walkthrough", "tabB.2"),
+        ("C.1", "Aspect mentions by platform", "tabC.1"),
+        ("D.1", "Per-class metrics for all models", "tabD.1"),
+        ("E.1", "Review length statistics by platform", "tabE.1"),
+        ("E.2", "Annotations per review distribution", "tabE.2"),
+        ("E.3", "Annotation labels by platform", "tabE.3"),
+        ("E.4", "Star rating statistics by platform", "tabE.4"),
     ]
     figure_list = [
         ("3.1", "Reviews per marketplace", "fig3.1"),
@@ -1156,6 +1996,9 @@ def main() -> None:
         ("4.3", "Sentiment distribution within each aspect", "fig4.3"),
         ("4.4", "Net sentiment heatmap (platform x aspect)", "fig4.4"),
         ("4.5", "Agreement by star bucket on real Amazon reviews", "fig4.5"),
+        ("4.6", "Predicted vs human sentiment confusion (real reviews)", "fig4.6"),
+        ("5.1", "Technology stack", "fig5.1"),
+        ("5.2", "End-to-end application workflow", "fig5.2"),
     ]
     fill_lists(doc, table_list, figure_list)
     build_body(doc)
