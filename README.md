@@ -181,7 +181,7 @@ python frontend/scripts/export_data.py
 streamlit run app.py
 
 # 3. In another terminal, run the frontend dev server
-cd frontend
+cd refurbiq/frontend
 npm install          # first time only
 cp .env.example .env # points VITE_STREAMLIT_URL at http://localhost:8501
 npm run dev          # opens http://localhost:5173
@@ -190,7 +190,7 @@ npm run dev          # opens http://localhost:5173
 ### Build
 
 ```bash
-cd frontend
+cd refurbiq/frontend
 npm run build        # output in frontend/dist/
 npm run preview      # serve the production build locally
 ```
