@@ -1,0 +1,7 @@
+{
+  "demoReviews": 1500,
+  "platformsCompared": 5,
+  "bestModel": "Logistic Regression \u2014 90.7% accuracy",
+  "annotations": 3548,
+  "provenance": "All figures are computed from the project's synthetic demonstration corpus (research/data) and are not verified marketplace data."
+}

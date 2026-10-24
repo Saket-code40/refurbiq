@@ -163,6 +163,84 @@ Confidence levels:
 
 ---
 
+## 9. Website Frontend (`frontend/`)
+
+A React + Vite + Tailwind single-page site presents the project: home with
+stat cards, a five-step "How it works" section, the Streamlit app embedded in
+an iframe, interactive result charts (Recharts), and methodology &
+limitations. Every number on the site is exported from the project's computed
+outputs — nothing is typed by hand.
+
+### Local development
+
+```bash
+# 1. Export the latest numbers into frontend/public/data/*.json
+python frontend/scripts/export_data.py
+
+# 2. Run the Streamlit app (the Live demo tab iframes it)
+streamlit run app.py
+
+# 3. In another terminal, run the frontend dev server
+cd frontend
+npm install          # first time only
+cp .env.example .env # points VITE_STREAMLIT_URL at http://localhost:8501
+npm run dev          # opens http://localhost:5173
+```
+
+### Build
+
+```bash
+cd frontend
+npm run build        # output in frontend/dist/
+npm run preview      # serve the production build locally
+```
+
+### Deployment
+
+**Streamlit app — Streamlit Community Cloud**
+
+1. Push this repo to GitHub (done: `Saket-code40/refurbiq`).
+2. Go to https://share.streamlit.io → *New app* → pick the repo, branch
+   `main`, main file `app.py`.
+3. Python version: 3.11 (or 3.12); requirements file: `requirements.txt`.
+4. Deploy. When it is live, note the URL
+   (`https://<account>-refurbiq.streamlit.app`).
+
+**Frontend — Vercel / Netlify / GitHub Pages**
+
+- Vercel: import the repo, set *Root Directory* to `frontend`, framework
+  preset *Vite*, build command `npm run build`, output directory `dist`.
+  Add environment variable `VITE_STREAMLIT_URL` = your Streamlit Cloud URL.
+- Netlify: same settings under *Build settings*; add the same env var.
+- GitHub Pages: `npm run build` and publish `frontend/dist/`
+  (`base: "./"` keeps relative asset paths working).
+
+The env var is baked in at build time, so redeploy the frontend whenever the
+Streamlit URL changes.
+
+### If the iframe is blocked
+
+- Streamlit Cloud does not send `X-Frame-Options` by default, so embedding
+  works. If you self-host Streamlit behind a proxy that does send it, remove
+  or relax that header for your frontend origin.
+- Verify the plain URL loads first: open the Streamlit URL in its own tab.
+  Free Streamlit Cloud instances sleep after inactivity — the first embedded
+  load can take a minute; the site shows a spinner meanwhile.
+- Mixed content: serve both sites over HTTPS.
+- Worst case, the "Open in new tab" fallback link on the Live demo section
+  always works.
+
+### Data export
+
+`frontend/scripts/export_data.py` reads the project outputs
+(`research/tables/*.csv`, `research/data/*.json`, `research/data/aspect_annotations.csv`,
+`data/raw/reviews.csv`) and writes
+`frontend/public/data/{stats,models,aspect_sentiment,heatmap}.json`. Any value
+it cannot find is written as `"N/A"` rather than invented. Re-run it after any
+retraining or dataset change, then rebuild the frontend.
+
+---
+
 ## Project Structure
 
 ```
@@ -184,6 +262,11 @@ refurbiq/
 │   ├── analytics.py               # statistics & insights
 │   └── recommendation.py          # multi-factor platform recommendation engine
 ├── app.py                         # Streamlit UI (8 tabs)
+├── frontend/                      # React + Vite + Tailwind website
+│   ├── scripts/export_data.py     # exports computed outputs to JSON
+│   ├── public/data/               # generated: stats/models/aspect/heatmap
+│   └── src/                       # site components (hero, demo, results…)
+├── .streamlit/config.toml         # Streamlit theme (matches the site)
 ├── requirements.txt
 └── README.md
 ```

@@ -1,0 +1,247 @@
+{
+  "platforms": [
+    "Amazon Renewed",
+    "Budli",
+    "Cashify",
+    "Flipkart Refurbished",
+    "OLX"
+  ],
+  "aspects": [
+    "Product condition",
+    "Battery health",
+    "Performance",
+    "Price and value",
+    "Packaging and delivery",
+    "Repair and refurbishment quality",
+    "Seller and customer service",
+    "Returns and refunds",
+    "Trust and authenticity"
+  ],
+  "cells": [
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Product condition",
+      "negativeShare": 0.2376
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Battery health",
+      "negativeShare": 0.2955
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Performance",
+      "negativeShare": 0.2872
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Price and value",
+      "negativeShare": 0.4066
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Packaging and delivery",
+      "negativeShare": 0.2613
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Repair and refurbishment quality",
+      "negativeShare": 0.3535
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Seller and customer service",
+      "negativeShare": 0.2366
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Returns and refunds",
+      "negativeShare": 0.3434
+    },
+    {
+      "platform": "Amazon Renewed",
+      "aspect": "Trust and authenticity",
+      "negativeShare": 0.3663
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Product condition",
+      "negativeShare": 0.2456
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Battery health",
+      "negativeShare": 0.3704
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Performance",
+      "negativeShare": 0.3469
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Price and value",
+      "negativeShare": 0.4091
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Packaging and delivery",
+      "negativeShare": 0.2885
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Repair and refurbishment quality",
+      "negativeShare": 0.4259
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Seller and customer service",
+      "negativeShare": 0.2459
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Returns and refunds",
+      "negativeShare": 0.375
+    },
+    {
+      "platform": "Budli",
+      "aspect": "Trust and authenticity",
+      "negativeShare": 0.3175
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Product condition",
+      "negativeShare": 0.3548
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Battery health",
+      "negativeShare": 0.2929
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Performance",
+      "negativeShare": 0.3519
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Price and value",
+      "negativeShare": 0.3465
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Packaging and delivery",
+      "negativeShare": 0.3956
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Repair and refurbishment quality",
+      "negativeShare": 0.32
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Seller and customer service",
+      "negativeShare": 0.1525
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Returns and refunds",
+      "negativeShare": 0.3409
+    },
+    {
+      "platform": "Cashify",
+      "aspect": "Trust and authenticity",
+      "negativeShare": 0.3274
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Product condition",
+      "negativeShare": 0.2568
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Battery health",
+      "negativeShare": 0.2308
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Performance",
+      "negativeShare": 0.3086
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Price and value",
+      "negativeShare": 0.32
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Packaging and delivery",
+      "negativeShare": 0.3457
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Repair and refurbishment quality",
+      "negativeShare": 0.4
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Seller and customer service",
+      "negativeShare": 0.2571
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Returns and refunds",
+      "negativeShare": 0.2817
+    },
+    {
+      "platform": "Flipkart Refurbished",
+      "aspect": "Trust and authenticity",
+      "negativeShare": 0.3378
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Product condition",
+      "negativeShare": 0.2564
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Battery health",
+      "negativeShare": 0.2533
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Performance",
+      "negativeShare": 0.3421
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Price and value",
+      "negativeShare": 0.2714
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Packaging and delivery",
+      "negativeShare": 0.2742
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Repair and refurbishment quality",
+      "negativeShare": 0.2958
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Seller and customer service",
+      "negativeShare": 0.4595
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Returns and refunds",
+      "negativeShare": 0.3265
+    },
+    {
+      "platform": "OLX",
+      "aspect": "Trust and authenticity",
+      "negativeShare": 0.4
+    }
+  ]
+}

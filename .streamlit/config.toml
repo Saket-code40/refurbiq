@@ -1,0 +1,17 @@
+# RefurbIQ visual theme — matches the website frontend and the presentation.
+# Navy #1F3864, teal #1F6F78, crimson #B03A5B, text #26323F, pale #E6EFF4.
+
+[theme]
+base = "light"
+primaryColor = "#1F6F78"
+backgroundColor = "#E6EFF4"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#26323F"
+font = "sans serif"
+
+[server]
+headless = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

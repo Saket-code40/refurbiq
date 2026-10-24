@@ -1,0 +1,67 @@
+{
+  "aspects": [
+    {
+      "aspect": "Product condition",
+      "positive": 50.1,
+      "neutral": 22.6,
+      "negative": 27.3,
+      "mentions": 403
+    },
+    {
+      "aspect": "Battery health",
+      "positive": 50.7,
+      "neutral": 20.7,
+      "negative": 28.6,
+      "mentions": 381
+    },
+    {
+      "aspect": "Performance",
+      "positive": 44.9,
+      "neutral": 22.5,
+      "negative": 32.6,
+      "mentions": 408
+    },
+    {
+      "aspect": "Price and value",
+      "positive": 45.4,
+      "neutral": 19.4,
+      "negative": 35.2,
+      "mentions": 403
+    },
+    {
+      "aspect": "Packaging and delivery",
+      "positive": 46.6,
+      "neutral": 21.9,
+      "negative": 31.5,
+      "mentions": 397
+    },
+    {
+      "aspect": "Repair and refurbishment quality",
+      "positive": 44.2,
+      "neutral": 20.3,
+      "negative": 35.4,
+      "mentions": 364
+    },
+    {
+      "aspect": "Seller and customer service",
+      "positive": 52.4,
+      "neutral": 21.9,
+      "negative": 25.7,
+      "mentions": 416
+    },
+    {
+      "aspect": "Returns and refunds",
+      "positive": 48.2,
+      "neutral": 18.6,
+      "negative": 33.2,
+      "mentions": 355
+    },
+    {
+      "aspect": "Trust and authenticity",
+      "positive": 46.3,
+      "neutral": 18.8,
+      "negative": 34.9,
+      "mentions": 421
+    }
+  ]
+}

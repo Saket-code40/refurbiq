@@ -77,6 +77,30 @@ def _width_kw(element) -> dict:
 
 st.set_page_config(page_title="RefurbIQ", page_icon="🔍", layout="wide")
 
+# Light visual polish matching the website frontend / presentation palette
+# (navy #1F3864, teal #1F6F78, crimson #B03A5B). Presentation only — no
+# analysis logic is affected. The Streamlit menu and footer stay as-is; the
+# embedded view (?embed=true) already hides them.
+st.markdown(
+    """
+    <style>
+      .block-container { padding-top: 2rem; }
+      h1, h2, h3 {
+        font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+        color: #1F3864;
+      }
+      div[data-testid="stMetric"] {
+        background: #FFFFFF;
+        border-radius: 0.75rem;
+        padding: 0.9rem 1.1rem;
+        box-shadow: 0 4px 16px rgba(31, 56, 100, 0.08);
+      }
+      div[data-testid="stMetric"] label { color: #26323F; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # --- Model & pipeline helpers (ML logic itself stays in src/) ---
 @st.cache_resource(show_spinner="Loading sentiment model…")

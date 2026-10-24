@@ -21,3 +21,8 @@ models/
 .vscode/
 # Large real-review parquet (25 MB; re-downloadable from HF)
 research/data/real/amazon_train.parquet
+
+# Frontend build artefacts and local env
+frontend/node_modules/
+frontend/dist/
+frontend/.env
