@@ -272,8 +272,77 @@ def recommendation():
     save(fig, "4_diagram_recommendation.png")
 
 
+# ---------------------------------------------------------------- 5. heatmap
+def platform_heatmap():
+    """Aspect x platform net-sentiment heatmap for the results slide.
+
+    Rendered from the same annotation outputs that build Table 6
+    (aspect_annotations.csv x reviews.csv marketplace); the per-platform
+    negative-share extremes are cross-checked against
+    research/tables/table6_cross_platform.csv before saving.
+    """
+    import pandas as pd
+    from matplotlib.colors import LinearSegmentedColormap
+
+    repo = OUT.parent
+    ann = pd.read_csv(repo / "research" / "data" / "aspect_annotations.csv")
+    rev = pd.read_csv(repo / "research" / "data" / "reviews.csv")
+    t2 = pd.read_csv(repo / "research" / "tables" / "table2_aspect_frequency.csv")
+    t6 = pd.read_csv(repo / "research" / "tables" / "table6_cross_platform.csv")
+    aspects = [a for a in t2.Aspect if a != "Total"]
+    t6i = t6.set_index("Platform")
+    platforms = [p for p in t6i.index if p != "Total"]
+
+    df = ann.merge(rev[["review_id", "marketplace"]], on="review_id")
+    net, negshare = {}, {}
+    for p in platforms:
+        for a in aspects:
+            sub = df[(df.marketplace == p) & (df.aspect == a)]
+            n = len(sub)
+            pos = int((sub.sentiment == "positive").sum())
+            neg = int((sub.sentiment == "negative").sum())
+            net[(p, a)] = 100.0 * (pos - neg) / n if n else 0.0
+            negshare[(p, a)] = 100.0 * neg / n if n else 0.0
+
+    # Cross-check the extremes against Table 6 (same underlying outputs).
+    for p in platforms:
+        got_a = max(aspects, key=lambda a: negshare[(p, a)])
+        got_v = round(negshare[(p, got_a)], 1)
+        exp_a = t6i.loc[p, "Aspect with highest negative share"]
+        exp_v = float(t6i.loc[p, "Highest negative share (%)"])
+        flag = "OK" if got_a == exp_a and abs(got_v - exp_v) < 0.05 else "MISMATCH"
+        print(f"  table6 check {p}: {flag} ({got_a} {got_v} vs {exp_a} {exp_v})")
+
+    vals = [[net[(p, a)] for a in aspects] for p in platforms]
+    max_abs = max(abs(v) for row in vals for v in row)
+    vmax = -(-max_abs // 10.0) * 10.0  # round up to nearest 10
+
+    cmap = LinearSegmentedColormap.from_list("net", ["#B03A5B", "#FFFFFF", "#1F6F78"])
+    fig, ax = plt.subplots(figsize=(13, 7.2))
+    im = ax.imshow(vals, cmap=cmap, vmin=-vmax, vmax=vmax, aspect="auto")
+    ax.set_xticks(range(len(aspects)))
+    ax.set_xticklabels(aspects, rotation=32, ha="right", fontsize=10)
+    ax.set_yticks(range(len(platforms)))
+    ax.set_yticklabels(platforms, fontsize=11)
+    for i, p in enumerate(platforms):
+        for j, a in enumerate(aspects):
+            v = vals[i][j]
+            ax.text(j, i, f"{v:+.1f}", ha="center", va="center", fontsize=9.5,
+                    color="white" if abs(v) > 0.62 * vmax else INK)
+    cbar = fig.colorbar(im, ax=ax, shrink=0.82)
+    cbar.set_label("net sentiment = positive % - negative %", fontsize=10)
+    ax.set_title("Aspect x platform net sentiment (synthetic demo corpus)",
+                 fontsize=15, fontweight="bold", color=NAVY, pad=12)
+    fig.text(0.5, 0.005,
+             "Synthetic demonstration corpus - not verified marketplace data",
+             ha="center", fontsize=9, color=GREY, style="italic")
+    fig.tight_layout()
+    save(fig, "5_diagram_platform_aspect_heatmap.png")
+
+
 if __name__ == "__main__":
     tech_stack()
     app_workflow()
     research_pipeline()
     recommendation()
+    platform_heatmap()
